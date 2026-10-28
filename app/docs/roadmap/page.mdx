@@ -1,0 +1,116 @@
+export const metadata = {
+  title: "Roadmap",
+  description:
+    "The five phases of Tripon — spec, bootstrap compiler, agent tooling, self-host and the native backend — with what has shipped and what is next.",
+  alternates: { canonical: "/docs/roadmap" },
+};
+
+# Roadmap
+
+Work is tracked in `PLAN.md` in the repository, in the order it has to happen rather
+than in the order it would look good on a slide. Each phase has an acceptance
+criterion, and a phase is done when the criterion holds — which is why the self-host
+column below is a fraction rather than a date.
+
+| phase | what | status |
+|---|---|---|
+| P0 | the spec: grammar, type contract, frozen error table | shipped |
+| P1 | a bootstrap compiler in C99 | shipped |
+| P2 | agent tooling: fmt, doc, lsp, deps, the token oracle | shipped |
+| P3 | self-host — the compiler written in Tripon | in progress: lexer and parser replay their oracles; the typechecker is written |
+| P4 | the native x86-64 backend | in progress: scalars and floats at byte parity; aggregates next |
+
+## P0 — the spec
+
+The first phase shipped nothing that runs, and it is the reason everything after it can
+be checked.
+
+- `spec/grammar.ebnf` — one EBNF file, plain features only
+- `spec/tripon.md` — identity, the tier table, and the type contract T1–T9
+- `spec/errors.csv` — the diagnostic table, frozen before the compiler existed
+- acceptance: the spec round-trips ten sample `.tp` files
+
+Freezing the error codes before writing the compiler was a deliberate ordering choice:
+codes are append-only, so the decision could be made cheaply at the start and not at
+all later.
+
+## P1 — a bootstrap compiler in C99
+
+Zero dependencies, one C file per pass, built by a `Makefile` with nothing in it but a
+list of sources.
+
+- **P1.0** lexer, parser, typechecker and C99 code generator; the `build`, `run`,
+  `check --json`, `emit` and `explain` drivers; the no-UB traps; the print builtins
+- **P1.1** structs, enums with payloads, exhaustive `match`, `cast<T>`; `opt`,
+  `result`, `?` propagation and no-`null`
+- **P1.2** fixed arrays and `str` indexing with `E9002`, and `*i8` for the
+  `extern "C"` fence
+- acceptance: hello world, a linked list and a sum-type match program all compile and
+  run, on `gcc` and on `clang`
+
+Each pass is one file — `lex.c`, `parse.c`, `typecheck.c`, `codegen.c` — and each is
+independent enough to be tested on its own, which is what makes the later ports
+possible one at a time.
+
+## P2 — agent tooling
+
+The phase that turned the compiler into an interface.
+
+- `ralt fmt` — canonical layout, so a diff is a reviewable artifact
+- `ralt doc` — signatures in text or JSON, with `extern` marked
+- `ralt lsp` — an editor and agent server over stdio, sharing the compiler's passes
+- `ralt deps` and `ralt install` — a manifest, a cache, no link ceremony
+- `ralt tokens` — the token stream, frozen as an oracle for the coming lexer port
+- acceptance: the edit loop runs end to end — error JSON in, a correct fix out, green
+  check — and the suite is 42 checks with determinism byte-identical
+
+## P3 — self-host
+
+Tripon written in Tripon. Each port is held to the bootstrap compiler's output over a
+48-file corpus, byte for byte.
+
+- **P3.0 shipped** — the lexer port replays the `ralt tokens` stream, 47/47 files
+- **P3.1 shipped** — the parser port replays the `ralt tree` dump, 48/48 files,
+  including its own source
+- **P3.2 in progress** — the typechecker port is written against `ralt check --json`;
+  wiring that oracle into the suite is what remains
+- **next** — the flag day: a Tripon compiler, built by the bootstrap, compiles itself
+  and passes the suite
+
+The ports have already paid for themselves twice over: they exposed an `else if` chain
+that dropped statements and a parenthesised logical expression that regrouped in the
+generated C. Both are fixed. See [self-hosting](/docs/self-hosting).
+
+## P4 — the native backend
+
+The C99 path stays the default; the native backend exists so that the C compiler can
+become an option rather than a requirement.
+
+- **P4.0 shipped** — the `--backend` seam and the flag
+- **P4.1 shipped** — scalars, with the traps at byte parity with the C path
+- **P4.2 shipped** — floats: slot-resident, `xmm0` staging, IEEE-blob constants,
+  `E9004` guards on float-to-integer casts, NaN-safe comparisons
+- **next** — P4.3 aggregates: arrays, structs, enums with match, `opt` and `result`
+- **then** — P4.4, a native test slice held to the same stdout, exit status and trap
+  protocol as the C backend
+
+One contract governs the whole phase: same front end, same semantics, same trap line,
+same exit `101`. A second backend that disagrees with the first about a program's
+meaning would be worse than no second backend.
+
+## After that
+
+Recorded as ideation rather than as a phase, because neither is designed yet:
+
+- a content-addressed package cache, so a dependency is fetched once and identified by
+  its hash rather than by a URL
+- a tier linter, so a file's declared ceiling is enforced against everything it
+  actually uses — the piece of [the tier system](/docs/language/tiers) that is
+  specified but not yet wired into the compiler
+
+## Not decided
+
+`spec/tripon.md` lists what is deliberately open rather than quietly assumed: closure
+capture rules, the async slot, how complete the borrow checker becomes, and the generics
+ABI. Each is a question with more than one good answer, and each is written down as
+unresolved so that an implementation cannot settle it by accident.

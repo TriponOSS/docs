@@ -1,0 +1,485 @@
+/* ============================================================================
+   Landing page
+
+   One column, read top to bottom like a build log. Sections are separated by
+   dotted rules and nothing else: no eyebrows, no card grid, no numbered
+   markers, and no entrance animation — the only thing on the page that moves
+   is the art, which moves because it is a program running.
+   ========================================================================= */
+
+/* --- hero --------------------------------------------------------------- */
+
+.hero {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  gap: clamp(1.5rem, 4vw, 2.5rem);
+  padding-block: clamp(2.5rem, 6vw, 4.5rem) clamp(2rem, 4vw, 3rem);
+}
+
+.hero-copy {
+  min-width: 0;
+}
+
+/* The second column: one solid, turning. It is the only object on the page —
+   the rest of the landing is text, rules and transcripts. */
+.hero-object {
+  display: none;
+}
+
+@media (min-width: 62rem) {
+  .hero {
+    grid-template-columns: minmax(0, 1.15fr) minmax(19rem, 0.85fr);
+    align-items: center;
+    /* The object needs air around it; the hero is the one place on the page
+       that is allowed to be taller than its content. */
+    min-height: min(72vh, 42rem);
+    padding-block: clamp(3.5rem, 7vw, 6rem) clamp(3rem, 6vw, 5rem);
+  }
+
+  .hero-object {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.hero-object .art-figure {
+  width: 100%;
+}
+
+.hero-object .art {
+  color: var(--ink);
+}
+
+/* A scene from ascii.rest, filling the whole hero behind the words. The scene
+   is scaled to cover the box rather than kept at its own aspect ratio, so it
+   never letterboxes or leaves a strip of ground showing at one end. */
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.hero-bg .art-figure,
+.hero-bg .art-cell {
+  width: 100%;
+  height: 100%;
+}
+
+.hero-bg .art-cell {
+  border: 0;
+  background: none;
+  padding: 0;
+}
+
+.hero-bg .art {
+  color: var(--info);
+}
+
+/* A palette piece brings its own colours on a canvas. Let it fill the hero and
+   crop the overflow; the bitmap keeps the piece's cell shape either way. It is
+   dimmed here rather than on the wrapper, so the scrim below stays full. */
+.hero-bg canvas.art {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  opacity: 0.6;
+  font-size: 0;
+  line-height: 0;
+  object-fit: cover;
+}
+
+/* Hold the scene back under the copy, and melt it into the page at both ends. */
+.hero-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      to right,
+      color-mix(in srgb, var(--bg) 76%, transparent) 0%,
+      color-mix(in srgb, var(--bg) 38%, transparent) 44%,
+      transparent 70%
+    ),
+    linear-gradient(
+      to bottom,
+      var(--bg) 0%,
+      transparent 20%,
+      transparent 76%,
+      var(--bg) 100%
+    );
+}
+
+.hero h1 {
+  font-size: var(--t-h1);
+  max-width: 34ch;
+}
+
+/* The second sentence hangs as its own line, in the dim. */
+.hero h1 .quiet {
+  display: block;
+  margin-top: 0.12em;
+  color: var(--muted);
+}
+
+.hero-lede {
+  margin-top: 1.1em;
+  max-width: 66ch;
+  color: var(--text);
+}
+
+.hero-actions {
+  margin-top: 1.8em;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem 2ch;
+}
+
+.hero-plate {
+  margin-top: clamp(1.5rem, 3.5vw, 2.25rem);
+}
+
+.hero-note {
+  margin-top: 0.8em;
+  font-size: var(--t-meta);
+  color: var(--muted);
+  max-width: 80ch;
+}
+
+/* --- bands -------------------------------------------------------------- */
+
+.band {
+  margin-top: clamp(4rem, 9vw, 7rem);
+  padding-top: 1.25rem;
+  border-top: 1px dotted var(--rule);
+}
+
+.band > h2 {
+  font-size: var(--t-h2);
+  max-width: 42ch;
+}
+
+.band > .band-lede {
+  margin-top: 1em;
+  max-width: 72ch;
+  color: var(--text);
+}
+
+.band-body {
+  margin-top: clamp(1.75rem, 4vw, 2.5rem);
+}
+
+/* --- the contract table ------------------------------------------------- */
+
+.contract {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--t-ui);
+}
+
+.contract th {
+  text-align: left;
+  font-weight: 700;
+  color: var(--ink);
+  padding: 0 2ch 0.6em 0;
+  border-bottom: 1px solid var(--rule);
+  white-space: nowrap;
+}
+
+.contract td {
+  padding: 0.85em 2ch 0.85em 0;
+  border-bottom: 1px dotted var(--rule);
+  vertical-align: top;
+}
+
+.contract td:first-child {
+  color: var(--muted);
+  width: 26ch;
+}
+
+.contract td:last-child {
+  white-space: nowrap;
+}
+
+.contract .outcome {
+  display: inline-flex;
+  align-items: center;
+  gap: 1ch;
+}
+
+.contract .outcome::before {
+  content: "";
+  width: 0.7ch;
+  height: 0.7ch;
+  background: var(--ok);
+  flex: none;
+}
+
+.contract tr[data-open="true"] .outcome::before {
+  background: var(--signal);
+}
+
+.trap-sample {
+  margin-top: 1.6rem;
+}
+
+/* --- two column splits -------------------------------------------------- */
+
+.split {
+  display: grid;
+  gap: clamp(1.5rem, 4vw, 2.5rem);
+  align-items: start;
+}
+
+/* A cell shrinks to its track: a long transcript scrolls inside its own well
+   instead of widening the page. */
+.split > *,
+.numbers > *,
+.steps > * {
+  min-width: 0;
+}
+
+@media (min-width: 62rem) {
+  .split[data-cols="two"] {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  }
+}
+
+.stack > * + * {
+  margin-top: 1.4rem;
+}
+
+/* --- tiers -------------------------------------------------------------- */
+
+.tiers {
+  display: grid;
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+}
+
+@media (min-width: 52rem) {
+  .tiers {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.tier {
+  background: var(--bg);
+  padding: 1.4rem 2ch 1.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.tier-n {
+  font-size: var(--t-meta);
+  color: var(--muted);
+}
+
+.tier-name {
+  font-size: 1.0625rem;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.tier-gets {
+  font-size: var(--t-ui);
+  color: var(--text);
+  flex: 1;
+}
+
+.tier-target {
+  font-size: var(--t-meta);
+  color: var(--muted);
+  border-top: 1px dotted var(--rule);
+  padding-top: 0.7rem;
+}
+
+.tier[data-ceiling="true"] {
+  background: var(--raise);
+}
+
+.tier[data-ceiling="true"] .tier-name {
+  color: var(--signal);
+}
+
+/* --- the agent loop ----------------------------------------------------- */
+
+.steps {
+  display: grid;
+  gap: 1.5rem;
+}
+
+@media (min-width: 62rem) {
+  .steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 2ch;
+  }
+}
+
+.step-h {
+  font-size: var(--t-ui);
+  color: var(--ink);
+  margin-bottom: 0.6rem;
+}
+
+.step-h::before {
+  color: var(--faint);
+  content: "> ";
+}
+
+.step p {
+  font-size: var(--t-ui);
+  color: var(--muted);
+}
+
+/* --- numbers ------------------------------------------------------------ */
+
+.numbers {
+  display: grid;
+  gap: clamp(1.5rem, 4vw, 2.5rem);
+}
+
+@media (min-width: 62rem) {
+  .numbers {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+.bench-note {
+  font-size: var(--t-ui);
+  color: var(--muted);
+  max-width: 60ch;
+}
+
+.bench-note + .bench-note {
+  margin-top: 0.9em;
+}
+
+.status-list {
+  font-size: var(--t-ui);
+}
+
+.status-list div {
+  display: flex;
+  gap: 2ch;
+  padding: 0.55em 0;
+  border-bottom: 1px dotted var(--rule);
+}
+
+.status-list dt {
+  color: var(--muted);
+  width: 12ch;
+  flex: none;
+}
+
+.status-list dd {
+  margin: 0;
+  color: var(--text);
+}
+
+/* --- read on ------------------------------------------------------------ */
+
+.readon {
+  display: grid;
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+}
+
+@media (min-width: 48rem) {
+  .readon {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 76rem) {
+  .readon {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.readon a,
+.readon div {
+  background: var(--bg);
+  padding: 1.1rem 2ch 1.3rem;
+  text-decoration-line: none;
+  display: block;
+}
+
+.readon a {
+  margin: 0;
+}
+
+.readon .readon-t {
+  color: var(--ink);
+  display: block;
+}
+
+.readon .readon-d {
+  color: var(--muted);
+  font-size: var(--t-ui);
+  margin-top: 0.35em;
+}
+
+@media (hover: hover) {
+  .readon a:hover {
+    background: var(--raise);
+    color: var(--bg);
+  }
+  .readon a:hover .readon-t {
+    color: var(--bg);
+  }
+  .readon a:hover .readon-d {
+    color: var(--bg);
+    opacity: 0.72;
+  }
+}
+
+/* --- footer call -------------------------------------------------------- */
+
+.call {
+  margin-top: clamp(4rem, 9vw, 6rem);
+  padding-top: 1.25rem;
+  border-top: 1px dotted var(--rule);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem 4ch;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.call p {
+  max-width: 56ch;
+  color: var(--text);
+}
+
+/* a short list of language facts, hung off the code sample */
+.facts {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: var(--t-ui);
+  color: var(--muted);
+  border-top: 1px dotted var(--rule);
+}
+
+.facts li {
+  padding: 0.6em 0;
+  border-bottom: 1px dotted var(--rule);
+}
+
+.facts li::before {
+  content: "· ";
+  color: var(--faint);
+}
+
+.facts code {
+  color: var(--text);
+}

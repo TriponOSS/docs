@@ -1,0 +1,155 @@
+export const metadata = {
+  title: "Types and inference",
+  description:
+    "The Tripon type set, what the compiler infers and what you must write, and cast<T> — the only conversion in the language.",
+  alternates: { canonical: "/docs/language/types" },
+};
+
+# Types and inference
+
+Types are explicit at every boundary and inferred only inside a function body. A
+signature is a contract between two pieces of code that may never be read together;
+a local is not.
+
+| group | types |
+|---|---|
+| signed integers | `i8` `i16` `i32` `i64` `isize` |
+| unsigned integers | `u8` `u16` `u32` `u64` `usize` |
+| floats | `f32` `f64` |
+| other scalars | `bool`, `byte`, `str`, `void`, `()` |
+| constructed | `opt<T>`, `result<T, E>`, `[N]T`, `[]T`, `&T`, `fn(…) -> T`, named structs and enums |
+
+Two defaults decide the type of a literal that does not say: an integer literal is
+`i32`, and an ambiguous float literal is `f64`. Widths are never widened for you to
+make an expression work — `i8` and `i64` are as separate as `i32` and `str`.
+
+```tripon
+fn scale(p: Point) -> Point {   // explicit: parameters and return type
+    let doubled = p.x * 2;      // inferred: i32, from p.x
+    return Point { x: doubled, y: p.y * 2 };
+}
+```
+
+## No implicit conversions, in either direction
+
+This is the rule that surprises people coming from C, where the compiler quietly
+promotes and truncates on your behalf. Tripon refuses both, including the widening
+that is provably lossless:
+
+```tripon
+use tier core;
+
+fn main() -> i32 {
+    let small: i32 = 5;
+    let wide: i64 = small;      // refused
+    print_i32(cast<i32>(wide));
+    return 0;
+}
+```
+
+<Session
+  lines={[
+    "$ ralt check widen.tp",
+    "widen.tp:5:21: error: initializer is i32 but binding is i64; no implicit conversion exists",
+    "  [E0202 type-mismatch] types must match exactly; no implicit conversion exists; use cast<T>(x)",
+  ]}
+/>
+
+Mixing types in an expression fails the same way, before anything is emitted:
+
+<Session
+  lines={[
+    "$ ralt check bad.tp",
+    "bad.tp:5:13: error: i32 and f64 do not share an operator; no implicit conversion exists",
+    "  [E0202 type-mismatch] types must match exactly; no implicit conversion exists; use cast<T>(x)",
+  ]}
+/>
+
+The frozen code table also carries `E0207 implicit-conversion-denied` for the same
+class of mistake; see [diagnostic codes](/docs/diagnostics). Either way the repair is
+the same, and it is explicit.
+
+## `cast<T>(x)` is the only conversion
+
+`cast` does exactly what its target type says, and nothing is inferred from context:
+
+```tripon
+fn main() -> i32 {
+    let small: i32 = 5;
+    let wide: i64 = cast<i64>(small);     // widening, still written out
+    let back: i32 = cast<i32>(wide);      // truncating by definition
+    let asfloat: f64 = cast<f64>(small);  // integer to float
+    let floored: i32 = cast<i32>(asfloat); // float to integer, truncating toward zero
+    print_i32(back);
+    print_f64(asfloat);
+    print_i32(floored);
+    return 0;
+}
+```
+
+<Session
+  lines={["$ ralt run casts.tp", "5", "5.00", "5"]}
+/>
+
+Integer truncation is defined: it keeps the low bits, and it never has an
+implementation-defined result. Casting the largest `i64` down to `i32` gives `-1`
+everywhere, on both backends:
+
+<Session
+  lines={[
+    "$ ralt run trunc.tp",
+    "-1",
+  ]}
+/>
+
+Float to integer is the one cast that can fail, so it is the one cast that is
+guarded. A value outside the target range is a defined trap, not an undefined
+result:
+
+<Session
+  lines={[
+    "$ ralt run f2i.tp",
+    "tripon trap E9004 cast-overflow-trap at f2i.tp:5",
+    "$ echo $?",
+    "101",
+  ]}
+/>
+
+The guard is emitted by both backends: the C path checks the float against the
+target range before truncating, and the native path does the same arithmetic inline
+rather than relying on the C behaviour, which is undefined. See
+[traps](/docs/language/traps).
+
+## What a check finds
+
+Type errors name the identifier, the span and the type, so the repair is a
+computation rather than a guess:
+
+<Session
+  title="E0201 — a name that is not in scope"
+  lines={[
+    "$ ralt check unknown.tp",
+    "unknown.tp:4:15: error: unknown identifier 'counter' in this scope",
+    "  [E0201 unknown-identifier] define it, use the right module, or fix spelling",
+  ]}
+/>
+
+<Session
+  title="E0203 — a const that is reassigned"
+  lines={[
+    "$ ralt check mut.tp",
+    "mut.tp:5:5: error: LIMIT is const and cannot be reassigned",
+    "  [E0203 mutability-required] declared const but reassigned; switch to let",
+  ]}
+/>
+
+`let` is a mutable binding and `const` is not, exactly as written. The compiler is
+not making a suggestion here: `const`, once bound, has one value for the rest of its
+scope, and code that reassigns it does not build.
+
+## `bool` is a type, not an integer
+
+There is no truthiness and no `bool`-as-`i32`. A comparison produces a `bool`,
+`&&` and `||` take two of them, `!` negates one, and an integer in that position is a
+type error. This is why the conditions in [the language](/docs/language) can be read
+without knowing anything about the values involved.

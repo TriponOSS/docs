@@ -1,0 +1,97 @@
+export const metadata = {
+  title: "Self-hosting",
+  description:
+    "The Tripon lexer and parser are written in Tripon and held to the bootstrap compiler byte for byte. What the oracle tests prove, and what the port exposed.",
+  alternates: { canonical: "/docs/self-hosting" },
+};
+
+# Self-hosting
+
+A language that can describe its own compiler has demonstrated the parts that matter:
+enough expressiveness to hold real programs, enough precision that two implementations
+agree, and a specification complete enough to write a second one from. That is the
+goal of phase P3 — "Tripon made with Tripon" — and it is being reached one pass at a
+time, with no hand-waving between the steps.
+
+## The three ports
+
+Each pass of the bootstrap compiler is ported to `.tp`, and each port is held to a
+frozen oracle produced by the C implementation.
+
+| pass | source | oracle | status |
+|---|---|---|---|
+| lexer | `selfhost/lexer.tp` — 510 lines | `ralt tokens` | replaying, 47/47 files |
+| parser | `selfhost/parser.tp` — 1,577 lines | `ralt tree` | replaying, 48/48 files |
+| typechecker | `selfhost/check.tp` — 2,544 lines | `ralt check --json` | written; its oracle is being wired into the suite |
+
+## How the oracle works
+
+`tests/selfhost.sh` builds the port, then runs it and the bootstrap command over the
+same corpus — every file in `examples/` and `tests/cases/`, plus the port's own source.
+The file's exact bytes are handed to the port through `$TP_SRC`, with a sentinel
+character appended and stripped so that trailing newlines survive a shell round trip
+that would otherwise eat them. For the lexer, the comparison is the complete token
+stream:
+
+<Session
+  title="the oracle, for one file"
+  lines={[
+    "$ ralt tokens examples/hello.tp",
+    "TK_USE 4 1",
+    "TK_TIER 4 5",
+    "TK_IDENT 4 10 core",
+    "…",
+    "$ TP_SRC=\"$(cat examples/hello.tp)\" ./tp_lexbin   # the same stream, from Tripon",
+  ]}
+/>
+
+Byte-identical output, or the test fails and says which file. Nothing is normalised,
+nothing is sorted, and nothing is ignored: a difference in whitespace between two token
+lines is a failure. That is the point — an oracle that tolerates small differences
+proves nothing about the second implementation.
+
+The parser oracle compares the AST dump the same way, over 48 files: the 46-file
+corpus plus `lexer.tp` and `parser.tp` itself, which is what makes a parser port
+meaningful rather than incidental. The port parses its own source, and the dump has to
+match what the C parser produces for it.
+
+## What the port exposed
+
+Writing the same pass twice is a good test of the first one, and it found two real bugs
+in the bootstrap code generator:
+
+- **An `else if` chain dropped statements after the second level.** The `ST_IF`
+  emission was not recursive, so anything following a nested `else if` disappeared from
+  the generated C.
+- **`a || (b && c)` regrouped.** Parenthesised operands were emitted without the
+  precedence parentheses they needed, so the C compiler read the expression as C
+  associates it rather than as it was written.
+
+Neither was a crash. Both were the kind of quiet difference in output that only shows
+up when a second implementation has to agree with the first.
+
+## What the port forced
+
+Tripon v0 has no module-level mutable state and no array parameters, so the typechecker
+port threads a by-value `Compiler` struct through every recursive function — state
+flows in as an argument and out as a return value. That is a genuine constraint of the
+language as it stands, and the port is a live record of what it costs: more
+parameters, more returns, no hidden state. It is also an argument in the language's
+favour — with the struct threaded explicitly, the checker has no ambient state to
+reason about, and the same discipline is what makes each pass a function of its input.
+
+## The flag day
+
+The end of P3 is a single test: a Tripon compiler, compiled by the bootstrap `ralt`,
+compiles itself and passes the whole suite — after which the bootstrap can be retired
+to a bootstrapping reference. Until that happens, each pass is a measurable fraction of
+the way there, and the oracles above are the ruler.
+
+## Why this is worth the effort
+
+Self-hosting is not a purity exercise here. A second implementation in the language
+being defined is the strongest available test of three properties at once: that the
+grammar is complete enough to express a compiler (no missing constructs), that the
+semantics are precise enough for two implementations to agree (no undefined corners),
+and that the diagnostics are stable enough to be a contract. All three are the same
+properties an agent writing Tripon code depends on.

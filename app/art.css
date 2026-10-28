@@ -1,0 +1,74 @@
+/* ============================================================================
+   ASCII art
+
+   ascii.rest's <Ascii> ships no CSS on purpose: a piece is a <pre> and the
+   page decides its ink and its size. The rule below is ascii.rest's own art
+   rule, adapted so it needs no JavaScript to stay inside its container — the
+   font size solves for the piece's character grid against the container's
+   inline size, so a 62-column piece and a 36-column piece both land flush.
+
+   Cell geometry: every monospace glyph is 0.6em wide and one line tall, which
+   is why the divisor is 0.6 and the line height is 1.2 (a character cell is
+   twice as tall as it is wide, the shape every piece is drawn for).
+   ========================================================================= */
+
+.art-figure {
+  margin: 0;
+}
+
+.art-cell {
+  container-type: inline-size;
+  background: var(--well);
+  border: 1px solid var(--rule);
+  padding: clamp(0.75rem, 2cqi, 1.5rem);
+  overflow: hidden;
+}
+
+.art-cell[data-bare="true"] {
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+.art {
+  --cols: 62;
+  --rows: 18;
+  --art-max: 13px;
+
+  display: block;
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: min(var(--art-max), calc(99cqi / var(--cols) / 0.6));
+  line-height: 1.2;
+  letter-spacing: 0;
+  white-space: pre;
+  font-variant-ligatures: none;
+  user-select: none;
+  min-height: calc(1.2em * var(--rows));
+}
+
+/* A piece that is scenery rather than output sits behind the text at low
+   contrast — it is a texture, the same way a terminal's background is. */
+.art-cell[data-faint="true"] .art {
+  color: var(--faint);
+}
+
+.art-caption {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4ch 2ch;
+  margin-top: 0.9em;
+  font-size: var(--t-meta);
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.art-caption b {
+  color: var(--text);
+  font-weight: 400;
+}
+
+.art-caption .rule-key {
+  color: var(--faint);
+}

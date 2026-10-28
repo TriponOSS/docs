@@ -1,0 +1,169 @@
+export const metadata = {
+  title: "Getting started",
+  description:
+    "Build the ralt toolchain from source, run your first Tripon program, and read the machine-format diagnostics it produces.",
+  alternates: { canonical: "/docs/getting-started" },
+};
+
+# Getting started
+
+Tripon has no installer, no package manager and no runtime to ship. You need `git`
+and a C99 compiler — `gcc`, `clang`, or a tcc-class compiler for the C output. The
+toolchain is one static binary, `ralt`, built from a single `Makefile`.
+
+## Build it
+
+```sh
+git clone https://github.com/TriponOSS/tripon
+cd tripon
+make
+```
+
+That writes `build/ralt`, which is the whole toolchain: compiler, formatter,
+documenter, dependency collector, LSP server. Copy it anywhere on your `PATH` and it
+works the same.
+
+```sh
+make test
+```
+
+The suite is 42 checks, including the diagnostic JSON goldens in
+`tests/expected/`. It must pass under both `gcc` and `clang`.
+
+## Run a program
+
+Here is `examples/hello.tp` from the repository, complete:
+
+```tripon
+// examples/hello.tp - the canonical smoke test
+// run: ralt run examples/hello.tp
+
+use tier core;
+
+extern "C" {
+    fn puts(p: str) -> i32;
+}
+
+fn main() -> i32 {
+    puts("hello from tripon");
+    return 0;
+}
+```
+
+<Session
+  lines={[
+    "$ ralt run examples/hello.tp",
+    "hello from tripon",
+  ]}
+/>
+
+`ralt run` builds and executes in one step. By default it emits C99, hands it to
+your C compiler and runs the result — the emitted C is real, readable C, and you can
+keep it:
+
+```sh
+ralt emit --c examples/hello.tp -o hello.c
+```
+
+## Ask it what is wrong
+
+`ralt check` is the command an agent lives in: it typechecks without building, and
+`--json` turns the diagnostics into data. A clean file answers with an empty array.
+
+<Session
+  title="a clean check"
+  lines={["$ ralt check examples/fib.tp --json", "[]"]}
+/>
+
+This program adds an `i32` to an `f64`, which Tripon refuses: there are no implicit
+conversions, in either direction.
+
+```tripon
+use tier core;
+
+fn main() -> i32 {
+    let n = 5;
+    let x = n + 1.5;
+    return 0;
+}
+```
+
+<Session
+  title="the same check, machine format"
+  lines={[
+    "$ ralt check bad.tp --json",
+    "[",
+    '  { "code": "E0202", "kind": "error", "name": "type-mismatch", "file": "bad.tp", "line": 5, "col": 13, "len": 7, "msg": "i32 and f64 do not share an operator; no implicit conversion exists", "hint": "types must match exactly; no implicit conversion exists; use cast<T>(x)" }',
+    "]",
+  ]}
+/>
+
+The same diagnostic, for a person, carries the span on the first line and the code
+and its hint on the second:
+
+<Session
+  lines={[
+    "$ ralt check bad.tp",
+    "bad.tp:5:13: error: i32 and f64 do not share an operator; no implicit conversion exists",
+    "  [E0202 type-mismatch] types must match exactly; no implicit conversion exists; use cast<T>(x)",
+  ]}
+/>
+
+`ralt check` exits `1` when there is at least one error and `0` when there are none,
+so a shell loop can branch on it without reading the output. Every code also has a
+page here, and `ralt explain` prints the same hint the compiler would: see
+[diagnostic codes](/docs/diagnostics).
+
+## Scaffold a project
+
+`ralt init` writes a minimal project — a manifest, one source file, a `.gitignore`:
+
+<Session
+  lines={[
+    "$ ralt init demo",
+    "-> scaffolded demo (ralt.yaml, src/main.tp)",
+    "-> next: ralt run src/main.tp",
+  ]}
+/>
+
+```yaml
+name: demo
+version: 0.1.0
+deps:
+```
+
+```tripon
+use tier core;
+
+extern "C" { fn puts(p: str) -> i32; }
+
+// demo - a Tripon program (.tp)
+fn main() -> i32 {
+    puts("hello, tripon");
+    return 0;
+}
+```
+
+`ralt.yaml` is where dependencies are declared and pinned; `ralt install` resolves
+them into `~/.ralt/deps` and `ralt deps` lists what was collected. Dependency sources
+compile into the same translation unit as yours — no link step, no `dlopen`. See
+[the ralt reference](/docs/toolchain).
+
+## Editors
+
+```sh
+ralt lsp
+```
+
+An LSP server over stdio, built from the same compiler internals, so the diagnostics
+in your editor are the diagnostics `ralt check` prints — same codes, same spans. There
+is nothing to configure beyond pointing your editor at the binary.
+
+## Where to go next
+
+- [Hello, Tripon](/docs/hello-tripon) walks the program above one line at a time.
+- [The language](/docs/language) is the surface: statements, expressions, precedence.
+- [Traps and no-UB](/docs/language/traps) explains what happens at runtime when a
+  program divides by zero, because it is not a crash.
+- [The agent interface](/docs/agents) is the contract in full, if a program is
+  going to read the compiler rather than a person.

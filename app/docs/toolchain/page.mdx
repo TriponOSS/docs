@@ -1,0 +1,264 @@
+export const metadata = {
+  title: "The ralt reference",
+  description:
+    "Every subcommand of the Tripon toolchain, the flags each one takes, and what it writes: build, run, check, emit, explain, fmt, doc, init, install, deps, lsp, tokens and tree.",
+  alternates: { canonical: "/docs/toolchain" },
+};
+
+# The `ralt` reference
+
+One binary does everything: compile, run, check, format, document, collect
+dependencies, and serve an editor. There is no tool discovery, no plugin directory and
+no second executable to find.
+
+<Session
+  title="ralt, with no arguments"
+  lines={[
+    "$ ralt",
+    "ralt - the Tripon toolchain (.tp files)",
+    "",
+    "  ralt build <file.tp> [-o out]  [-O fast] [-fast]  build an executable",
+    "  ralt run   <file.tp> [args...]                  build + execute",
+    "  ralt check <file.tp> [--json]                   typecheck with diagnostics",
+    "  ralt emit  --c file.tp -o out.c                 stop after C codegen",
+    "  ralt explain <code>                             e.g. E0202",
+    "  ralt init  [name]                              scaffold a .tp project (or ./name/)",
+    "  ralt install <name|url|dir>                     resolve/install a dep",
+    "  ralt deps                                       list collected dep files",
+    "  ralt fmt <file.tp>                              print canonical form",
+    "  ralt doc <file.tp> [--json]                     fn signatures",
+    "  ralt lsp                                        editor/agent server",
+    "",
+    "  -O fast   enable opt-level code paths in the C pipeline",
+    "  -fast     integer overflow wraps instead of trapping (no-UB stays)",
+  ]}
+/>
+
+Two more commands are not in that list because they exist for the test suite rather
+than for people: [`ralt tokens`](#oracles) and [`ralt tree`](#oracles).
+
+## `build`
+
+Compiles a program. The default pipeline emits C99, hands it to your C compiler and
+links the result:
+
+```sh
+ralt build examples/hello.tp              # writes build/a.out
+ralt build hello.tp -o hello              # names the artifact
+ralt build hello.tp -O fast               # turns the C optimizer on
+ralt build wrap.tp -fast                  # + - * wrap instead of trapping
+ralt build hello.tp --backend native      # x86-64 assembly, no C step
+```
+
+| flag | effect |
+|---|---|
+| `-o <path>` | where the executable goes; the default is `build/a.out` |
+| `-O fast` | opt-level code paths in the C pipeline (the default build runs no optimizer, because most builds are small and the pass would cost more than it saves) |
+| `-fast` | `+`, `-`, `*` wrap two's-complement rather than trapping — see [traps](/docs/language/traps) |
+| `--backend native` | emit x86-64 assembly directly; `as` assembles and `cc` is used only as the link driver |
+
+## `run`
+
+Builds and executes in one step, passing any trailing arguments to the program and
+streaming its stdio. This is the loop you use while writing:
+
+<Session lines={["$ ralt run examples/hello.tp", "hello from tripon"]} />
+
+## `check`
+
+Typechecks without building. Fast enough to run on every keystroke — a few
+milliseconds on the corpus — and it is the command the whole agent interface is built
+around:
+
+```sh
+ralt check examples/fib.tp            # human format
+ralt check examples/fib.tp --json     # the diagnostic contract
+```
+
+The human format puts the span on the first line and the code with its hint on the
+second, so the same information is readable by a person and parseable by a program.
+`--json` emits one array, in lex → parse → typecheck order, with nothing hidden behind
+the first error. See [the agent interface](/docs/agents) for the field list.
+
+## `emit`
+
+Stops after code generation, so you can read, diff or ship the C:
+
+```sh
+ralt emit --c examples/hello.tp -o hello.c
+```
+
+The output is ordinary C99 with `tp_`-prefixed names, one translation unit, and the
+no-UB checks wired in as real code. It is also the determinism gate: `tests/determinism.sh`
+emits twice and compares the bytes.
+
+## `explain`
+
+Every code, expanded from the same table the compiler emits from:
+
+<Session
+  lines={[
+    "$ ralt explain E0202",
+    "E0202",
+    "severity: error",
+    "name: type-mismatch",
+    "hint: types must match exactly; no implicit conversion exists; use cast<T>(x)",
+  ]}
+/>
+
+All of them are also on [the diagnostic codes](/docs/diagnostics) page.
+
+## `fmt`
+
+Prints the canonical layout of a file. It is a printer, not an in-place rewriter: it
+writes the result to standard output, so a diff is visible before anything moves.
+
+<Session
+  title="before — inconsistent indentation, no annotation"
+  lines={[
+    "$ cat ugly.tp",
+    "use tier core;",
+    "fn main() -> i32 {",
+    "        let x=1;",
+    "   return 0;",
+    "}",
+  ]}
+/>
+
+<Session
+  title="after — ralt fmt ugly.tp"
+  lines={[
+    "use tier core;",
+    "",
+    "fn main() -> i32 {",
+    "  let x: i32 = 1;",
+    "  return 0;",
+    "}",
+  ]}
+/>
+
+Two things are worth noticing. The layout is canonical — there is exactly one way for
+the formatter to print any program, which is what lets a diff be a meaningful review
+artifact. And the inferred type of `x` is now written out: inference is the compiler's
+convenience, and the formatter shows you the types it settled on.
+
+## `doc`
+
+Prints the signature of every function, in text or as JSON:
+
+<Session
+  lines={[
+    "$ ralt doc examples/hello.tp",
+    "fn puts(p: str) -> i32",
+    "fn main() -> i32",
+  ]}
+/>
+
+<Session
+  lines={[
+    "$ ralt doc examples/hello.tp --json",
+    "[",
+    "  { \"symbol\": \"puts\", \"signature\": \"extern \\\"C\\\" fn puts(p: str) -> i32\", \"extern\": true, \"file\": \"hello.tp\", \"line\": 7 },",
+    "  { \"symbol\": \"main\", \"signature\": \"fn main() -> i32\", \"extern\": false, \"file\": \"hello.tp\", \"line\": 10 }",
+    "]",
+  ]}
+/>
+
+An `extern` function is marked as one, so a signature list cannot be mistaken for a
+list of functions this program defines.
+
+## `init`, `install`, `deps`
+
+`ralt init` writes a minimal project — a manifest, one source file, a `.gitignore`:
+
+<Session
+  lines={[
+    "$ ralt init demo",
+    "-> scaffolded demo (ralt.yaml, src/main.tp)",
+    "-> next: ralt run src/main.tp",
+  ]}
+/>
+
+```yaml
+name: demo
+version: 0.1.0
+deps:
+```
+
+Dependencies are declared there and resolved by `ralt install`, which caches them
+under `~/.ralt/deps` and pins what it resolved; `ralt deps` lists the sources that were
+collected. A dependency may be a git URL or a plain local directory, and its sources
+compile into the same translation unit as yours — cross-package calls inline, no link
+ceremony, no `dlopen`.
+
+```sh
+ralt install tinser
+ralt deps
+```
+
+`ralt deps` reads the manifest in the current directory, so it answers
+`ralt: no ralt.yaml here` outside a project rather than guessing at one.
+
+## `lsp`
+
+An editor and agent server over stdio, built from the same compiler internals as
+`check`. Diagnostics in your editor are the diagnostics `ralt check` prints — same
+codes, same spans — because they are produced by the same passes.
+
+## Oracles
+
+Two subcommands exist to pin the compiler's internals in place, and they are the
+reason the self-hosted ports can be held to the bootstrap byte for byte:
+
+<Session
+  title="ralt tokens — the token stream, with line and column"
+  lines={[
+    "$ ralt tokens examples/hello.tp",
+    "TK_USE 4 1",
+    "TK_TIER 4 5",
+    "TK_IDENT 4 10 core",
+    "TK_SEMI 4 14",
+    "…",
+  ]}
+/>
+
+<Session
+  title="ralt tree — the parse"
+  lines={[
+    "$ ralt tree examples/hello.tp",
+    "TIER core",
+    "EXTFN puts ret=i32",
+    "  PARAM p str",
+    "FN main ret=i32",
+    "  EXPR (CALL puts STR)",
+    "  RETURN INT 0",
+  ]}
+/>
+
+Both are frozen contracts with their own test scripts, and both are what
+[self-hosting](/docs/self-hosting) is measured against.
+
+## Backends
+
+| backend | how | state |
+|---|---|---|
+| C99 (default) | emit `.c`, run your C compiler, link | the reference path; any C99 compiler takes the output, including a tcc-class one |
+| x86-64 assembly | emit `.s`, assemble with `as`, link with `cc` | opt-in with `--backend native`; the P4 slices for scalars and floats are landed, aggregates are next |
+
+The two paths share one front end and one trap protocol: same codes, same stderr line,
+same exit status `101`.
+
+## Numbers
+
+Measured cold-cache by `bench/build_bench.sh`, which runs on any box:
+
+| pipeline | time |
+|---|---|
+| full build (emit + cc + link) | ~333 ms |
+| `ralt check` (type gates only) | ~4 ms |
+| codegen only (emit the `.c`) | ~5 ms |
+| hello binary (x86-64, dynamic) | ~17.7 KB |
+
+The default build runs no optimizer: `-O fast` opts into the passes, once the types
+prove them safe. `ralt check` is the number that matters most in practice, because it
+is the one you pay on every iteration.

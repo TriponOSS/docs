@@ -1,0 +1,195 @@
+export const metadata = {
+  title: "opt, result and ?",
+  description:
+    "Tripon has no null and no exceptions. A missing value is opt<T>, a failure is result<T, E>, and both are handled by match or propagated with ?.",
+  alternates: { canonical: "/docs/language/errors" },
+};
+
+# `opt`, `result` and `?`
+
+Two things cause most of the incidents in software written by people and by agents
+alike: a value that turns out to be missing, and an operation that turns out to have
+failed. Tripon makes both of them values with two variants each, so the language has
+no need for `null` and no need for exceptions.
+
+| type | variants | means |
+|---|---|---|
+| `opt<T>` | `some(v)`, `none` | a value that may be missing |
+| `result<T, E>` | `ok(v)`, `err(e)` | an operation that may fail |
+
+## No null, and it is not a convention
+
+`null` is not a keyword to be avoided, it is not in the grammar. Writing it is a
+parse error with the replacement named in the message:
+
+<Session
+  lines={[
+    "$ ralt check null.tp",
+    "null.tp:4:13: error: null and undefined do not exist; use opt (T) for may-be-missing values",
+    "  [E0204 no-null] null and undefined do not exist; use opt<T>",
+  ]}
+/>
+
+So a lookup that may find nothing returns `opt<T>`, and every reader of that value has
+to say what happens when it is `none`:
+
+```tripon
+use tier core;
+
+// T3: opt<i32> - constructors, match, ?-propagation inside an opt-returning fn.
+
+fn find(x: i32) -> opt<i32> {
+    if x > 0 { return some(x); }
+    return none;
+}
+
+fn bump(x: i32) -> opt<i32> {
+    let v = find(x)?;      // none propagates out of the opt-returning fn
+    return some(v + 1);
+}
+
+fn show(o: opt<i32>) {
+    match o {
+        some(v) => { print_i32(v); }
+        none => { print_str("none"); }
+    }
+}
+
+fn main() -> i32 {
+    show(bump(5));         // some path: 6
+    show(bump(-3));        // none path
+    show(find(-1));        // none, no spread
+    let d: opt<i32> = none;
+    show(d);               // typed bare none
+    let e: opt<i32> = some(9);
+    show(e);               // typed some
+    return 0;
+}
+```
+
+<Session
+  title="examples/opt_some.tp"
+  lines={["$ ralt run examples/opt_some.tp", "6", "none", "none", "none", "9"]}
+/>
+
+Note the two bindings near the end: `let d: opt<i32> = none;` needs the type, because
+a bare `none` carries no type of its own — nothing is guessed. `some(9)` infers its
+`T` from the argument and the annotation agrees with it.
+
+## `?` is propagation, not unwrapping
+
+`?` does not mean "unwrap, and fail at runtime if there is nothing". It means *if
+this is `none` (or `err`), return it from the function I am in right now*. That is why
+`bump` can be written without a `match`: its own return type is `opt<i32>`, so the
+propagation has somewhere to go.
+
+The caller of a `?` must therefore return the same shape. A `?` in a function
+returning `i32` is not a runtime hazard, it is a compile error.
+
+## Failures are values too
+
+`result<T, E>` is the same idea with an error payload you choose — here a `str`:
+
+```tripon
+use tier core;
+
+fn parse(s: str) -> result<i32, str> {
+    if s == "" { return err("empty input"); }
+    return ok(42);
+}
+
+fn validate(n: i32) -> result<i32, str> {
+    if n < 10 { return err("too small"); }
+    return ok(n * 2);
+}
+
+// ?-propagation across two fns returning result<i32, str>
+fn run() -> result<i32, str> {
+    let n = parse("hi")?;
+    let m = validate(n)?;
+    return ok(m);
+}
+
+fn run_bad() -> result<i32, str> {
+    let n = parse("")?;    // err propagates: parse gives err, run gives it on
+    return ok(n);
+}
+
+fn handle(r: result<i32, str>) -> i32 {
+    match r {
+        ok(v) => { return v; }
+        err(e) => { print_str(e); return -1; }
+    }
+}
+
+fn main() -> i32 {
+    let good = handle(run());
+    print_i32(good);
+    let bad = handle(run_bad());
+    print_i32(bad);
+    return 0;
+}
+```
+
+<Session
+  title="examples/result_ok.tp"
+  lines={["$ ralt run examples/result_ok.tp", "84", "empty input", "-1"]}
+/>
+
+`run` spreads twice; the first `err` to appear leaves the function immediately with
+that error. `handle` is the only place that decides what a failure means, and it is
+explicit about it.
+
+## A dropped result will not build
+
+The mistake this design exists to prevent is the ignored failure — the return value
+nobody checks. In Tripon, evaluating a `result` and discarding it is a compile error:
+
+<Session
+  lines={[
+    "$ ralt check unhandled.tp",
+    "unhandled.tp:8:5: error: result<i32, str> value evaluated and dropped",
+    "  [E0205 unhandled-result] Result value ignored; spread with ? or match",
+  ]}
+/>
+
+The two repairs are the two spellings: `?` if the failure belongs to your caller,
+`match` if it belongs to you. There is no third option where the failure quietly
+evaporates.
+
+## Propagation has to have somewhere to go
+
+Because `?` is a return, the function containing it must be able to return what it
+propagates. Both halves of that are checked:
+
+<Session
+  lines={[
+    "$ ralt check spread.tp",
+    "spread.tp:9:13: error: '?' inside a fn returning i32 cannot propagate; match it or return result<i32, str>",
+    "  [E0205 unhandled-result] Result value ignored; spread with ? or match",
+  ]}
+/>
+
+<Session
+  lines={[
+    "$ ralt check errmix.tp",
+    "errmix.tp:8:13: error: cannot spread result<i32, str> out of a fn returning result<i32, i32>",
+    "  [E0202 type-mismatch] types must match exactly; no implicit conversion exists; use cast<T>(x)",
+  ]}
+/>
+
+The error type is part of the type: a function that can fail with a `str` cannot
+quietly become a function that fails with an `i32`, in the same way that an `i32`
+cannot become an `i64`.
+
+## Where this shows up in the runtime
+
+`opt<T>` and `result<T, E>` are ordinary enums with two variants each, and the
+optimizer packs them into a niche where the types prove one exists, so a
+`result<i32, str>` is not a struct wrapping a flag in a box. The variants are checked
+at compile time and matched exhaustively like any other enum — a `match` that drops a
+variant is [E0206](/docs/diagnostics), the same as it would be for an enum you wrote.
+
+Next: [arrays and strings](/docs/language/arrays), or
+[the trap contract](/docs/language/traps) if you want to know what the runtime does
+when arithmetic goes wrong.

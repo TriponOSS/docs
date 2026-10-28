@@ -1,0 +1,441 @@
+/* ============================================================================
+   Chrome: masthead, footer, code blocks.
+
+   Dotted rules and square corners throughout — a terminal cell has no radius
+   and no shadow, and neither does anything here.
+   ========================================================================= */
+
+/* --- masthead -----------------------------------------------------------
+
+   A terminal tabline. One full-bleed row, flush to the top of the window, and
+   it scrolls away with the page — nothing is pinned and nothing floats. The
+   wordmark is a lit block, the current route is a lit tab, the path readout is
+   the shell's pwd, and everything else waits in the dim. */
+
+.masthead {
+  background: var(--well);
+  border-bottom: 1px solid var(--rule);
+}
+
+.masthead-bar {
+  display: flex;
+  align-items: stretch;
+  min-height: 2.75rem;
+}
+
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  gap: 0.55ch;
+  font-size: var(--t-ui);
+  text-decoration-line: none;
+}
+
+.wordmark-plate {
+  display: inline-flex;
+  align-items: center;
+  align-self: stretch;
+  padding-inline: 1.4ch;
+  background: var(--ink);
+  color: var(--bg);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+@media (hover: hover) {
+  .wordmark:hover {
+    background: none;
+    color: var(--ink);
+  }
+
+  .wordmark:hover .wordmark-plate {
+    background: var(--signal);
+    color: var(--bg);
+  }
+}
+
+.wordmark-caret {
+  display: inline-block;
+  width: 0.55ch;
+  height: 1em;
+  background: var(--signal);
+  animation: caret 1.15s steps(1, end) infinite;
+}
+
+@keyframes caret {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  50.01%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wordmark-caret {
+    animation: none;
+  }
+}
+
+/* The shell prompt's working directory: which part of the tree you are in. */
+.masthead-cwd {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding-inline: 1.6ch;
+  overflow: hidden;
+  font-size: var(--t-meta);
+  color: var(--muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.masthead-nav {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  margin-left: auto;
+  overflow-x: auto;
+  font-size: var(--t-ui);
+  scrollbar-width: none;
+}
+
+.masthead-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.masthead-nav a,
+.masthead-repo {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  padding-inline: 1.2ch;
+  color: var(--muted);
+  text-decoration-line: none;
+  white-space: nowrap;
+}
+
+.masthead-nav a:focus-visible,
+.masthead-repo:focus-visible {
+  outline-offset: -3px;
+}
+
+@media (hover: hover) {
+  .masthead-nav a:hover,
+  .masthead-repo:hover {
+    background: var(--raise);
+    color: var(--ink);
+  }
+}
+
+/* One lit tab, never two — the current route is the amber one. */
+.masthead-nav a[aria-current="page"] {
+  background: var(--signal);
+  color: var(--bg);
+  font-weight: 700;
+}
+
+@media (hover: hover) {
+  .masthead-nav a[aria-current="page"]:hover {
+    background: var(--signal);
+    color: var(--bg);
+  }
+}
+
+.masthead-repo {
+  border-left: 1px solid var(--rule-soft);
+  font-size: var(--t-meta);
+}
+
+@media (max-width: 64rem) {
+  .masthead-cwd {
+    display: none;
+  }
+}
+
+@media (max-width: 34rem) {
+  .masthead-nav a {
+    padding-inline: 0.9ch;
+  }
+
+  .masthead-repo {
+    display: none;
+  }
+}
+
+/* --- footer ------------------------------------------------------------- */
+
+.footer {
+  margin-top: clamp(4rem, 9vw, 7rem);
+  padding-bottom: 4rem;
+  font-size: var(--t-ui);
+}
+
+.footer .rule {
+  margin-bottom: 1.5rem;
+}
+
+.footer-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem 4ch;
+  justify-content: space-between;
+}
+
+.footer-line {
+  max-width: 62ch;
+  color: var(--muted);
+}
+
+.footer-line + .footer-line {
+  margin-top: 0.5em;
+}
+
+.footer a {
+  color: var(--text);
+}
+
+.footer-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 3ch;
+  color: var(--text);
+}
+
+/* --- code --------------------------------------------------------------- */
+
+.code {
+  background: var(--well);
+  border: 1px solid var(--rule);
+  font-size: var(--t-code);
+  line-height: 1.7;
+  overflow: hidden;
+}
+
+.code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2ch;
+  padding: 0.35rem 1.5ch 0.35rem 2ch;
+  border-bottom: 1px dotted var(--rule);
+  font-size: var(--t-meta);
+  color: var(--muted);
+}
+
+.code-title {
+  color: var(--muted);
+}
+
+.code-copy {
+  font: inherit;
+  font-size: var(--t-meta);
+  color: var(--muted);
+  background: none;
+  border: 0;
+  padding: 0 0.5ch;
+  cursor: pointer;
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: var(--faint);
+  text-underline-offset: 0.25em;
+}
+
+@media (hover: hover) {
+  .code-copy:hover {
+    background: var(--ink);
+    color: var(--bg);
+    text-decoration-line: none;
+  }
+}
+
+.code-body {
+  padding: 1.1em 2ch;
+}
+
+/* Every code block wraps. A transcript that disappears off the right edge is a
+   transcript nobody reads, and a wrapped diagnostic is still one diagnostic. */
+.code-body pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 0;
+  color: var(--text);
+}
+
+/* the prompt glyph, drawn so a copied line never contains it */
+.term-in {
+  color: var(--ink);
+}
+
+.term-in::before {
+  content: "$ ";
+  color: var(--signal);
+}
+
+.term-out {
+  color: var(--text);
+}
+
+/* --- the single command line -------------------------------------------- */
+
+.cmdline {
+  display: flex;
+  align-items: center;
+  gap: 2ch;
+  background: var(--well);
+  border: 1px solid var(--rule);
+  padding: 0.5rem 0.5ch 0.5rem 2ch;
+  font-size: var(--t-code);
+}
+
+.cmdline code {
+  flex: 1;
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.cmdline .code-copy {
+  flex: none;
+}
+
+/* --- token colours ------------------------------------------------------ */
+
+.tok-kw {
+  color: var(--signal);
+}
+
+.tok-type {
+  color: var(--info);
+}
+
+.tok-str {
+  color: var(--ok);
+}
+
+.tok-comment {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.tok-builtin {
+  color: var(--ink);
+}
+
+/* --- shared bits -------------------------------------------------------- */
+
+.pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1ch;
+  align-items: center;
+  font-size: var(--t-meta);
+  color: var(--muted);
+}
+
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 2ch;
+  align-items: center;
+  font-size: var(--t-ui);
+}
+
+.btn {
+  display: inline-block;
+  border: 1px solid var(--rule);
+  padding: 0.45em 1.5ch;
+  text-decoration-line: none;
+  color: var(--ink);
+  background: var(--raise);
+}
+
+@media (hover: hover) {
+  .btn:hover {
+    background: var(--ink);
+    color: var(--bg);
+    border-color: var(--ink);
+  }
+}
+
+.btn[data-primary="true"] {
+  border-color: color-mix(in srgb, var(--signal) 45%, transparent);
+  color: var(--signal);
+  background: color-mix(in srgb, var(--signal) 8%, transparent);
+}
+
+@media (hover: hover) {
+  .btn[data-primary="true"]:hover {
+    background: var(--signal);
+    color: var(--bg);
+    border-color: var(--signal);
+  }
+}
+
+/* --- not found -----------------------------------------------------------
+
+   404 is the toolchain's own kind of failure: a code, a span, a hint, an exit
+   status. The page reports itself the way ralt would. */
+
+.notfound {
+  max-width: 88ch;
+  padding-block: clamp(2.5rem, 7vw, 4.5rem) clamp(4rem, 9vw, 7rem);
+  text-align: center;
+}
+
+/* The block-letter 404, with no cell around it: the <pre> shrinks to its own
+   character grid so the block centres as one object, not line by line. */
+.notfound-art {
+  margin-bottom: 0.2rem;
+}
+
+.notfound-art .art {
+  width: max-content;
+  max-width: 100%;
+  margin-inline: auto;
+  text-align: left;
+}
+
+.notfound h1 {
+  font-size: var(--t-h1);
+  letter-spacing: -0.02em;
+  line-height: var(--lh-tight);
+}
+
+.notfound-lede {
+  max-width: 60ch;
+  margin: 1rem auto 0;
+  color: var(--text);
+}
+
+.notfound-note {
+  max-width: 64ch;
+  margin: 1.25rem auto 0;
+  font-size: var(--t-ui);
+  color: var(--muted);
+}
+
+/* A transcript is not centred: every column has to stay on its own line. */
+.notfound .code,
+.notfound .code-body pre {
+  text-align: left;
+}
+
+.notfound-note code {
+  color: var(--text);
+  font-size: 0.95em;
+}
+
+.notfound-routes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.6rem 2.2ch;
+  margin-top: 2.25rem;
+  padding-top: 1.1rem;
+  border-top: 1px dotted var(--rule);
+  font-size: var(--t-ui);
+}

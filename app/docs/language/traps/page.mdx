@@ -1,0 +1,136 @@
+export const metadata = {
+  title: "Traps and no-UB",
+  description:
+    "Undefined behaviour is not a category in Tripon. Overflow, division by zero, out-of-bounds indexing and out-of-range casts each have a defined outcome that names its code and its line.",
+  alternates: { canonical: "/docs/language/traps" },
+};
+
+# Traps and no-UB
+
+Undefined behaviour is what happens when the specification declines to say what a
+program does, and lets the optimizer decide instead. Tripon has no such category. Every
+edge case in the table below has one defined outcome, emitted by both backends, and no
+build flag turns that off.
+
+| the classic | in Tripon | outcome |
+|---|---|---|
+| integer overflow | traps, exit 101, `E9001` — or wraps with `-fast` | defined |
+| division and modulo by zero | traps, `E9003` | defined |
+| index out of bounds | bounds-checked on every access, traps `E9002` | defined |
+| an out-of-range float-to-integer cast | range-guarded, traps `E9004` | defined |
+| read of an uninitialized local | locals are zero-initialized | defined |
+
+## What a trap looks like
+
+A trap prints one line to standard error and exits `101`. No unwinding, no stack
+trace, no core dump — a code, a name and a line:
+
+<Session
+  title="E9003 — division by zero"
+  lines={[
+    "$ ralt run trap.tp",
+    "tripon trap E9003 division-by-zero-trap at trap.tp:5",
+    "$ echo $?",
+    "101",
+  ]}
+/>
+
+<Session
+  title="E9001 — integer overflow"
+  lines={[
+    "$ ralt run ovf.tp",
+    "tripon trap E9001 integer-overflow-trap at ovf.tp:5",
+    "$ echo $?",
+    "101",
+  ]}
+/>
+
+<Session
+  title="E9002 — an index past the end of an array"
+  lines={[
+    "$ ralt run oob.tp",
+    "tripon trap E9002 index-out-of-bounds at oob.tp:6",
+    "$ echo $?",
+    "101",
+  ]}
+/>
+
+<Session
+  title="E9004 — a float that does not fit the target integer"
+  lines={[
+    "$ ralt run f2i.tp",
+    "tripon trap E9004 cast-overflow-trap at f2i.tp:5",
+    "$ echo $?",
+    "101",
+  ]}
+/>
+
+Each of those lines is a complete bug report: the code has a page in
+[the diagnostic table](/docs/diagnostics), the name says what happened, and the
+`file:line` says where. A trap is deterministic — the same input traps on the same
+line, on `gcc` and on `clang`, on both backends.
+
+## `-fast` changes one thing, explicitly
+
+The default build traps on signed overflow, because a wrong number that silently
+continues is harder to find than a program that stops at the line that produced it.
+Where you want the wrap instead — a checksum, a hash, a deliberate modular
+accumulator — you ask for it at the command line:
+
+<Session
+  title="the same program, wrapped deliberately"
+  lines={[
+    "$ ralt build wrap.tp -fast -o wrap",
+    "$ ./wrap",
+    "-2147483648",
+  ]}
+/>
+
+`-fast` flips `+`, `-` and `*` on the integer types to two's-complement wrap. It does
+not touch bounds checks, it does not touch division by zero, and it does not
+reintroduce UB: the wrap is a defined result and the rest of the contract still holds.
+
+## Zero-initialized, always
+
+A local that has not been assigned yet reads as zero of its type — `0` for integers,
+`0.0` for floats, `false` for `bool`. Not "whatever was on the stack", which is what
+makes an uninitialized read a security bug in C:
+
+<Session
+  title="an int and a bool, never assigned"
+  lines={["$ ralt run zero.tp", "0", "zero"]}
+/>
+
+## Exit statuses
+
+A trap is not a failure of the command line and not a failed build, so it has a status
+of its own:
+
+| status | meaning |
+|---|---|
+| `0` | clean, or warnings only |
+| `1` | at least one diagnostic with severity `error` |
+| `101` | the program trapped at runtime |
+| `2` | the command line itself was wrong |
+
+A test harness can therefore tell "the program is wrong" (`1`) from "the program ran
+and hit a defined edge" (`101`) without parsing anything. `ralt explain` prints the
+same hint the compiler would, for any code:
+
+<Session
+  lines={[
+    "$ ralt explain E9003",
+    "E9003",
+    "severity: error",
+    "name: division-by-zero-trap",
+    "hint: div and mod by zero are defined traps; guard the divisor",
+  ]}
+/>
+
+## Why an optimizer likes this
+
+Every optimization a compiler performs is a bet that the program's meaning does not
+change. Where the meaning is undefined, the bet cannot be checked; where every edge
+case is defined, it can. Bounds elimination, constant folding and the niche packing
+that makes `result<T, E>` free all rest on the guarantee above, which is why the
+contract is enforced in the code generator rather than promised in the documentation.

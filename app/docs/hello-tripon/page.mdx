@@ -1,0 +1,155 @@
+export const metadata = {
+  title: "Hello, Tripon",
+  description:
+    "The first Tripon program, line by line: the tier declaration, the extern island, the entry point, and what the compiler emits for each part.",
+  alternates: { canonical: "/docs/hello-tripon" },
+};
+
+# Hello, Tripon
+
+Every language has a program that proves the compiler works end to end. This is
+Tripon's — `examples/hello.tp`, a file the test suite runs on every commit:
+
+```tripon
+// examples/hello.tp - the canonical smoke test
+// run: ralt run examples/hello.tp
+
+use tier core;
+
+extern "C" {
+    fn puts(p: str) -> i32;
+}
+
+fn main() -> i32 {
+    puts("hello from tripon");
+    return 0;
+}
+```
+
+## Line by line
+
+**`// …`** is a comment to the end of the line. `/* … */` is a block comment. There
+is no preprocessor and nothing is stripped before the code is read, so a comment
+can never change what the program means.
+
+**`use tier core;`** declares the tier ceiling for this file. Tiers run from `kernel`
+(no allocator, no runtime — firmware) to `full`, and the declaration is what tells
+the compiler which features the file may reach for. A file that declares nothing
+defaults to `core`. [The tier system](/docs/language/tiers) has the full table.
+
+**`extern "C" { … }`** is a fenced island. Functions declared inside it are raw C
+symbols taking raw pointers, and the fence is the only place a pointer type may
+appear: everything outside it is pointer-free and memory-safe. Here `puts` is
+declared as taking a `str` and returning `i32`, which is exactly how it is called.
+
+**`fn main() -> i32`** is the entry point. The return type is not decoration — it
+becomes the process exit status, which is why `main` returns `0` at the end. A
+file with no `main` is `E0501`; a function that returns nothing is written `-> ()`.
+
+**`puts("hello from tripon");`** passes a string literal. A `str` is a UTF-8 slice;
+the literal lives in the binary's read-only data, so this call allocates nothing.
+Semicolons are mandatory, as are braces around every block. Nothing in Tripon is
+optional in a way that could be read two ways.
+
+**`return 0;`** — early returns are ordinary, and every path through `main` must
+return a value.
+
+## Locals infer, signatures do not
+
+Parameters and return types are always written out. Locals are the one place the
+compiler infers, and it infers from the initializer:
+
+```tripon
+fn fib(n: i32) -> i32 {
+    let a = 0;          // i32: the default integer type
+    let b = 1;
+    let idx = 0;
+    while idx < n {
+        let next = a + b;
+        a = b;
+        b = next;
+        idx += 1;       // compound assign; there is no ++
+    }
+    return a;
+}
+```
+
+<Session
+  title="examples/fib.tp, called in a loop from main"
+  lines={[
+    "$ ralt run examples/fib.tp",
+    "0",
+    "1",
+    "1",
+    "2",
+    "3",
+    "5",
+    "8",
+    "13",
+    "21",
+    "34",
+  ]}
+/>
+
+`let` is reassignable and `const` is not — reassigning a `const` is `E0203`, not a
+warning. There is no `var`, no `for`, and no truthiness: a condition is a `bool`, and
+an integer in an `if` is a type error rather than a convention.
+
+## What the compiler sees
+
+Three commands print the program's insides, and all three are deterministic, which
+is what makes them usable as oracles:
+
+<Session
+  title="ralt tree — the parse, frozen since P3.1"
+  lines={[
+    "$ ralt tree examples/hello.tp",
+    "TIER core",
+    "EXTFN puts ret=i32",
+    "  PARAM p str",
+    "FN main ret=i32",
+    "  EXPR (CALL puts STR)",
+    "  RETURN INT 0",
+  ]}
+/>
+
+<Session
+  title="ralt tokens — the lexer's token stream, with line and column"
+  lines={[
+    "$ ralt tokens examples/hello.tp",
+    "TK_USE 4 1",
+    "TK_TIER 4 5",
+    "TK_IDENT 4 10 core",
+    "TK_SEMI 4 14",
+    "TK_EXTERN 6 1",
+    "TK_STR 6 8 C",
+    "TK_BRACE_L 6 12",
+    "TK_FN 7 5",
+    "TK_IDENT 7 8 puts",
+    "…",
+  ]}
+/>
+
+<Session
+  title="ralt check --json — the diagnostic contract"
+  lines={["$ ralt check examples/hello.tp --json", "[]"]}
+/>
+
+`ralt tokens` and `ralt tree` exist so the self-hosted lexer and parser can be held
+to the bootstrap compiler byte for byte. See [self-hosting](/docs/self-hosting).
+
+## Exit status
+
+`main` returns a status, and `ralt run` propagates it. There are four statuses worth
+branching on:
+
+| status | meaning |
+|---|---|
+| `0` | clean, or warnings only |
+| `1` | at least one diagnostic with severity `error` |
+| `101` | the program trapped at runtime |
+| `2` | the command line itself was wrong |
+
+The last one is the interesting one: `101` is a trap, which is how a division by
+zero reports itself. It is defined behaviour, it names its code and its line, and it
+is not a crash — see [traps](/docs/language/traps).

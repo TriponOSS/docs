@@ -1,0 +1,299 @@
+/* ============================================================================
+   Docs shell
+
+   A character-width rail and a fluid content column, the way ascii.rest lays
+   its own docs out. Headings in the content area carry their markdown marker
+   as a prefix (## / ###) — the page shows the source it came from, which is
+   the whole point of a language whose spec is a text file.
+   ========================================================================= */
+
+.docs {
+  display: grid;
+  gap: 2rem 5ch;
+  padding-top: 2.5rem;
+  align-items: start;
+}
+
+@media (min-width: 64rem) {
+  .docs {
+    grid-template-columns: var(--rail) minmax(0, 1fr);
+  }
+}
+
+@media (min-width: 96rem) {
+  .docs {
+    grid-template-columns: var(--rail) minmax(0, 1fr) 18ch;
+  }
+}
+
+/* --- sidebar ------------------------------------------------------------ */
+
+.docs-rail {
+  font-size: var(--t-ui);
+  line-height: 1.7;
+}
+
+@media (min-width: 64rem) {
+  .docs-rail {
+    position: sticky;
+    top: 4.5rem;
+    max-height: calc(100dvh - 5.5rem);
+    overflow-y: auto;
+    padding-right: 1ch;
+  }
+}
+
+.rail-group + .rail-group {
+  margin-top: 1.6rem;
+}
+
+.rail-label {
+  color: var(--faint);
+  font-size: var(--t-meta);
+  display: block;
+  margin-bottom: 0.3rem;
+}
+
+.rail-label::before {
+  content: "[";
+}
+
+.rail-label::after {
+  content: "]";
+}
+
+.docs-rail ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.docs-rail li {
+  margin: 0;
+}
+
+.docs-rail a {
+  display: block;
+  color: var(--muted);
+  text-decoration-line: none;
+  padding: 0.12em 0 0.12em 2ch;
+  margin: 0;
+  position: relative;
+}
+
+.docs-rail a::before {
+  content: "·";
+  position: absolute;
+  left: 0.5ch;
+  color: var(--faint);
+}
+
+@media (hover: hover) {
+  .docs-rail a:hover {
+    background: none;
+    color: var(--ink);
+  }
+  .docs-rail a:hover::before {
+    content: "-";
+    color: var(--signal);
+  }
+}
+
+.docs-rail a[aria-current="page"] {
+  background: var(--raise);
+  color: var(--ink);
+}
+
+.docs-rail a[aria-current="page"]::before {
+  content: ">";
+  color: var(--signal);
+}
+
+/* --- article ------------------------------------------------------------ */
+
+.docs-main {
+  min-width: 0;
+}
+
+.docs-main h1 {
+  font-size: clamp(1.6rem, 3vw, 2.1rem);
+  margin-bottom: 0.7em;
+}
+
+.docs-main > .prose > :first-child {
+  margin-top: 0;
+}
+
+/* the pager at the foot of every page */
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2ch;
+  justify-content: space-between;
+  margin-top: 4rem;
+  padding-top: 1.2rem;
+  border-top: 1px dotted var(--rule);
+  font-size: var(--t-ui);
+}
+
+.pager a {
+  text-decoration-line: none;
+  color: var(--ink);
+}
+
+@media (hover: hover) {
+  .pager a:hover {
+    background: none;
+    color: var(--signal);
+  }
+}
+
+.pager .pager-dir {
+  color: var(--faint);
+  display: block;
+  font-size: var(--t-meta);
+}
+
+.pager .pager-next {
+  text-align: right;
+  margin-left: auto;
+}
+
+/* --- docs index --------------------------------------------------------- */
+
+.docs-index {
+  display: grid;
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  margin-top: 2rem;
+}
+
+@media (min-width: 52rem) {
+  .docs-index {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.docs-index a {
+  background: var(--bg);
+  padding: 1.1rem 2ch 1.3rem;
+  text-decoration-line: none;
+  margin: 0;
+  display: block;
+}
+
+.docs-index .idx-t {
+  color: var(--ink);
+  display: block;
+}
+
+.docs-index .idx-d {
+  color: var(--muted);
+  font-size: var(--t-ui);
+  margin-top: 0.3em;
+}
+
+@media (hover: hover) {
+  .docs-index a:hover {
+    background: var(--raise);
+  }
+  .docs-index a:hover .idx-t {
+    color: var(--signal);
+  }
+}
+
+/* --- on this page ------------------------------------------------------- */
+
+.docs-toc {
+  display: none;
+}
+
+@media (min-width: 96rem) {
+  .docs-toc {
+    display: block;
+    position: sticky;
+    top: 4.5rem;
+    font-size: var(--t-meta);
+    line-height: 1.8;
+    color: var(--muted);
+  }
+}
+
+.docs-toc .rail-label {
+  margin-bottom: 0.5rem;
+}
+
+.docs-toc a {
+  color: var(--muted);
+  text-decoration-line: none;
+  display: block;
+}
+
+@media (hover: hover) {
+  .docs-toc a:hover {
+    background: none;
+    color: var(--ink);
+  }
+}
+
+/* --- callouts ----------------------------------------------------------- */
+
+.callout {
+  border: 1px solid var(--rule);
+  border-left: 2px solid var(--signal);
+  background: var(--well);
+  padding: 0.9em 2ch;
+  margin-block: 1.6em;
+  font-size: var(--t-ui);
+}
+
+.callout[data-kind="trap"] {
+  border-left-color: var(--trap);
+}
+
+.callout[data-kind="ok"] {
+  border-left-color: var(--ok);
+}
+
+.callout p + p {
+  margin-top: 0.6em;
+}
+
+.callout .callout-h {
+  color: var(--ink);
+  display: block;
+  margin-bottom: 0.3em;
+}
+
+/* a diagnostic row used inline in prose */
+.diag {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem 2ch;
+  padding: 0.7em 0;
+  border-bottom: 1px dotted var(--rule);
+  font-size: var(--t-ui);
+}
+
+.diag-code {
+  color: var(--trap);
+  flex: none;
+  min-width: 8ch;
+}
+
+.diag[data-sev="warn"] .diag-code {
+  color: var(--warn);
+}
+
+.diag-name {
+  color: var(--ink);
+  flex: none;
+  min-width: 26ch;
+}
+
+.diag-hint {
+  color: var(--muted);
+  flex: 1 1 30ch;
+}

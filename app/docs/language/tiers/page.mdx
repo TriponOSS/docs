@@ -1,0 +1,109 @@
+export const metadata = {
+  title: "Tiers",
+  description:
+    "Four tiers — kernel, core, std, full — decide what a file may use. A feature above the declared ceiling is E0301, never something that works by accident.",
+  alternates: { canonical: "/docs/language/tiers" },
+};
+
+# Tiers
+
+Firmware is not a server. Rather than shipping one language whose runtime is always
+present and hoping the linker removes it, Tripon splits the language into four
+additive tiers, and every file declares the ceiling it needs.
+
+| tier | name | gets | target |
+|---|---|---|---|
+| 0 | `kernel` | ints, bools, byte, structs, enums, fn, fixed arrays, extern C, `const` | firmware, bootloaders, bare metal |
+| 1 | `core` | + arena allocator, slices, `result` / `opt` / `?`, `match`, modules | microcontrollers, tiny CLIs |
+| 2 | `std` | + ref-owned pointers, `String` / `Vec` / `Map`, closures, generics | normal applications |
+| 3 | `full` | + coroutines and async, the self-host runtime | everything else |
+
+```tripon
+use tier core;
+
+fn checksum(data: i32, rounds: i32) -> i32 {
+    let acc = 0;
+    let round = 0;
+    while round < rounds {
+        acc = (acc + data) % 65521;
+        round += 1;
+    }
+    return acc;
+}
+
+fn main() -> i32 {
+    print_i32(checksum(1234, 10));
+    return 0;
+}
+```
+
+<Session
+  title="examples/tiers.tp — no allocation anywhere in it"
+  lines={["$ ralt run examples/tiers.tp", "12340"]}
+/>
+
+The declaration is a ceiling, not a floor: a `core` file may use everything `kernel`
+has. What it may not do is reach upward.
+
+## The rules
+
+- **The ceiling is declared, once, at the top of the file.** `use tier <name>;`, and
+  `ralt tree` prints it back, so which tier a file is written against is a fact you can
+  read rather than infer.
+- **A file that declares nothing is `core`** — the tier that carries `opt`, `result`,
+  `match` and `?`, which is what almost every program written as one file actually
+  needs.
+- **A stdlib module declares its own tier, and `use` raises your requirement.** Importing
+  something above your ceiling is not a local decision you can make quietly.
+- **Nothing degrades across tiers.** A higher-tier feature is never silently specialised
+  into a lower-tier one, and a missing feature is a hard error rather than a runtime
+  fallback.
+- **Higher-tier features are never inferred into lower-tier code.** A change that would
+  quietly pull the runtime into a `kernel` file is a diagnostic.
+
+## The two codes
+
+| code | name | means |
+|---|---|---|
+| `E0301` | `tier-violation` | a feature requires a higher tier than the file declared |
+| `E0302` | `tier-not-declared` | a tier is required here and no ceiling was declared |
+
+`E0301` reads exactly like any other diagnostic, which is the point: a tier problem is
+not a different kind of failure with its own vocabulary.
+
+<Session
+  lines={[
+    "$ ralt explain E0301",
+    "E0301",
+    "severity: error",
+    "name: tier-violation",
+    "hint: feature requires a higher tier; raise the tier target or rewrite the call",
+  ]}
+/>
+
+<div className="callout" data-kind="trap">
+  <span className="callout-h">Where this is today</span>
+  <p>
+    <code>use tier</code> is parsed, recorded and printed by <code>ralt tree</code>, and
+    both codes are in the frozen table — <code>ralt explain E0301</code> answers today.
+    The pass that refuses a tier-1 feature inside a <code>kernel</code> file is not wired
+    into the bootstrap compiler yet, so a mis-declared file checks clean rather than
+    failing. Treat the ceiling as declared-but-not-yet-enforced, and watch{" "}
+    <a href="/docs/roadmap">the roadmap</a>: the tier linter is the next piece after the
+    self-host typechecker.
+  </p>
+</div>
+
+## Why a tier at all
+
+The kernel tier is the reason the system exists in this shape. It has no allocator, so
+`malloc` cannot exist there; no runtime, so there is nothing to initialise before
+`main`; and no `libc` dependency, so a kernel-tier program can be freestanding. The
+features that remain — integers, structs, enums, functions, fixed arrays and calls into
+C — are enough to write a bootloader or a device driver, and the language you write them
+in is the same language a normal application is written in, with the same diagnostics
+and the same traps.
+
+That is also why the tiers are additive rather than separate dialects: moving a file up
+a tier adds syntax you may use, and never changes the meaning of syntax you already
+wrote.

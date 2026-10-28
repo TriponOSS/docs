@@ -1,0 +1,129 @@
+export const metadata = {
+  title: "The agent interface",
+  description:
+    "ralt is built to be read by programs: one JSON array per check, frozen codes, exact spans, a repair hint in the payload, and deterministic output on every command.",
+  alternates: { canonical: "/docs/agents" },
+};
+
+# The agent interface
+
+Writing code with a model is a loop: emit a guess, get feedback, correct the part the
+feedback pointed at. Most compilers make that loop expensive — a wall of text for a
+human, an exit code and no location for a machine. `ralt` treats the compiler-to-agent
+interface as a product surface, because it is the interface that gets used the most.
+
+## The loop, end to end
+
+A program with one mistake in it, checked in machine format. The mistake is on line 7 —
+an `i32` compared to an `f64` inside a condition:
+
+<Session
+  title="one check, two diagnostics, nothing held back"
+  lines={[
+    "$ ralt check broken.tp --json",
+    "[",
+    '  { "code": "E0202", "kind": "error", "name": "type-mismatch", "file": "broken.tp", "line": 7, "col": 15, "len": 7, "msg": "i32 and f64 do not share an operator; no implicit conversion exists", "hint": "types must match exactly; no implicit conversion exists; use cast<T>(x)" },',
+    '  { "code": "E0202", "kind": "error", "name": "type-mismatch", "file": "broken.tp", "line": 7, "col": 11, "len": 11, "msg": "condition must be bool", "hint": "no truthiness exists in Tripon; compare explicitly (x == 0)" }',
+    "]",
+  ]}
+/>
+
+Both diagnostics are in the array. The second is the consequence of the first — the
+expression is not a `bool` because it did not typecheck — and a compiler that stopped
+after the first error would have made the agent fix line 7 twice. Line `7`, column
+`15`, length `7` is the expression that has to change; nothing else has to be found.
+
+The same file, after the fix:
+
+<Session
+  lines={[
+    "$ ralt check main.tp --json",
+    "[]",
+    "$ ralt run main.tp",
+    "6765",
+  ]}
+/>
+
+An empty array and exit `0` is the whole success signal. There is no summary line to
+parse and no colour to strip.
+
+## The JSON contract
+
+One array, in lex → parse → typecheck order. Each object has the same nine fields:
+
+| field | what it is |
+|---|---|
+| `code` | the frozen code — `E0202`, `E9001` |
+| `kind` | `error` or `warn` |
+| `name` | the machine name from the table — `type-mismatch` |
+| `file` | the path exactly as it was given on the command line |
+| `line`, `col` | the 1-based start of the span |
+| `len` | how many characters the span covers |
+| `msg` | what is wrong, in one sentence |
+| `hint` | the repair, taken from `spec/errors.csv` |
+
+The goldens in `tests/expected/` are these arrays, byte for byte, so the format is a
+tested contract rather than a description of whatever the compiler currently prints.
+
+## Codes are append-only
+
+`E0202` means `type-mismatch` today and will mean `type-mismatch` in ten releases. New
+codes are appended; existing ones are never renumbered and never reused, even when the
+wording of a message is improved. That is what makes a repair rule, a prompt, a
+journal entry or a test assertion written today still valid tomorrow — and it is the
+one property that cannot be retrofitted later, which is why the table was frozen in
+P0 before the compiler existed.
+
+## Spans, not file names
+
+Every diagnostic carries a span, so the edit is a computation. `len` is measured in
+characters of the source, not bytes and not tokens, so a one-line program can be
+rewritten in one operation without re-reading the file. And because the span names the
+whole offending expression — see `len: 7` for `n + 1.5` above — the repair usually
+does not need to widen the edit either.
+
+## Determinism
+
+Every command produces the same output for the same input, byte for byte: the C the
+compiler emits, the token stream, the parse tree, the diagnostic array.
+`tests/determinism.sh` compiles the corpus twice and diffs the result. This is what
+makes it safe for an agent to cache, diff and reason about compiler output at all — a
+tool that answers differently on Tuesday cannot be used as a fact.
+
+Reasoning about the language works for the same reason: the grammar is one EBNF file,
+roughly a page and a half, with no macros, no operator overloading and no preprocessor.
+An agent can often work out what token must come next without a model call.
+
+## Oracles for tooling
+
+Two commands exist to pin the compiler's internals, and both are useful to anything
+building on top of it:
+
+```sh
+ralt tokens file.tp   # TK_USE 4 1 / TK_TIER 4 5 / … — every token, with line and column
+ralt tree   file.tp   # TIER core / FN main ret=i32 / … — the parse
+```
+
+They are the same commands the self-hosted lexer and parser are tested against, which
+means they are stable in the same way the diagnostic codes are. See
+[self-hosting](/docs/self-hosting).
+
+## One binary, no discovery tax
+
+`ralt` is the compiler, the formatter, the documenter, the dependency collector and the
+LSP server. There is no plugin to locate, no second tool to install and no per-tool
+vocabulary to learn: the span format in `check --json` is the span format in
+`doc --json`, and the hint in the payload is the same string `ralt explain` prints.
+
+## What the language does for the loop
+
+- No truthiness, so a condition that is not a `bool` is `E0202` rather than a guess.
+- No implicit conversions, so a mixed expression is an error with one repair.
+- No `null`, so the missing-value case has to be a `match` the agent writes deliberately.
+- No discarded `result`, so a failure cannot be left silently unhandled.
+- No macros and no overloading, so the meaning of a line of code is a function of that
+  line of code.
+
+Each of those removes a class of mistake that a model would otherwise make
+plausibly, and each is checked before a program runs. The
+[diagnostic codes](/docs/diagnostics) page is the full list of what it can say.

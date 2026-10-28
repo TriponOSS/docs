@@ -1,0 +1,127 @@
+export const metadata = {
+  title: "Structs, enums, match",
+  description:
+    "Data in Tripon lives by value: structs, enums whose variants carry payloads, and a match that must cover every variant.",
+  alternates: { canonical: "/docs/language/data" },
+};
+
+# Structs, enums, match
+
+There is no inheritance, no interfaces and no methods. There is a struct, an enum
+whose variants may carry payloads, and one way to take a value apart. Data lives by
+value: assignment copies, passing copies, and nothing is shared behind your back.
+
+## Structs
+
+```tripon
+struct Point { x: i32; y: i32; }
+
+fn shift(p: Point) -> Point {
+    return Point { x: p.x + 1, y: p.y + 1 };
+}
+```
+
+A struct is a named, ordered set of fields, each with an explicit type and a
+semicolon. `Point { x: 2, y: 3 }` constructs one; `p.x` reads a field. `shift` takes
+its argument by value, so the caller's `p` is untouched — which is also why the
+function has to return a new one.
+
+## Enums carry payloads
+
+A variant may hold nothing or several values, and each variant's payload is part of
+its type, not a void pointer you cast back:
+
+```tripon
+enum Shape {
+    Circle(i32),
+    Rect(i32, i32),
+    Empty
+}
+```
+
+`Shape::Circle(4)` and `Shape::Rect(3, 5)` are values of type `Shape`. There is no
+tag field to check by hand and no way to read `Circle`'s payload as a `Rect`'s.
+
+## `match` takes it apart
+
+```tripon
+fn area(s: Shape) -> i32 {
+    let out = 0;
+    match s {
+        Shape::Circle(r) => { out = 3 * r * r; }
+        Shape::Rect(w, h) => { out = w * h; }
+        Shape::Empty => { out = 0; }
+    }
+    return out;
+}
+```
+
+<Session
+  title="a struct by value, and three variants matched"
+  lines={["$ ralt run shape.tp", "3", "4", "48", "15"]}
+/>
+
+An arm is `pattern => { … }`, checked top to bottom. A pattern may be a variant with
+its payload bound to new names (`Shape::Rect(w, h)`), a bare variant, a literal, or
+`_`. Arms are not expressions and do not fall through: the block runs, and the match
+is over.
+
+`_` is deliberate, not a shortcut for "I did not want to think": writing it means
+every variant you did not name is handled by that arm, and the compiler will not warn
+you about a variant added later.
+
+<Session
+  title="an enum with three variants, two arms and a wildcard"
+  lines={["$ ralt run wild.tp", "a", "other"]}
+/>
+
+## Exhaustiveness is the point
+
+A `match` over an enum must cover every variant. This is not a lint that a build can
+ignore:
+
+<Session
+  lines={[
+    "$ ralt check nonex.tp",
+    "nonex.tp:7:5: error: match over 'C' misses variant 'B'",
+    "  [E0206 non-exhaustive-match] match must cover every enum variant or add a deliberate _ arm",
+  ]}
+/>
+
+And a pattern that cannot be reached is refused too, because an arm that never runs
+is almost always a copy-paste error rather than an intention:
+
+<Session
+  lines={[
+    "$ ralt check dup.tp",
+    "dup.tp:9:9: error: duplicate match arm: variant 'A' already covered",
+    "  [E0212 duplicate-match-arm] remove or reorder the repeated arm; match arms are checked top to bottom",
+  ]}
+/>
+
+Between `E0206` and `E0212`, adding a variant to an enum breaks every `match` that
+does not handle it — at compile time, in the same build, rather than as a fallthrough
+in production.
+
+<div className="callout">
+  <span className="callout-h">The shape of match, today</span>
+  <p>
+    In v0, <code>match</code> is a statement, so the arms assign or return inside
+    their blocks, as above. The expression form,{" "}
+    <code>{"let a = match s { … };"}</code>, is specified and lands in a later slice;
+    today the compiler says so rather than guessing at it.
+  </p>
+</div>
+
+## Where this leaves copy semantics
+
+Because values are copied, a struct assignment is a copy and passing a struct to a
+function copies it. For the sizes a low-resource target cares about that is what you
+want: no allocation, no reference count, no ownership question. References (`&T`),
+owned pointers and the fuller ownership model arrive with tier `std`, and the moved
+and borrowed forms are specified in `spec/tripon.md` rather than improvised here.
+
+## Opt, result and matches
+
+The two enums you will match most often are not declared by you: `opt<T>` and
+`result<T, E>` are the missing-value and failure types, and they are the next page.

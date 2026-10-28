@@ -1,0 +1,143 @@
+export const metadata = {
+  title: "Arrays and strings",
+  description:
+    "Fixed arrays whose length is part of the type, indexing that is bounds-checked everywhere, and str — a UTF-8 slice with no hidden allocation.",
+  alternates: { canonical: "/docs/language/arrays" },
+};
+
+# Arrays and strings
+
+An array in Tripon is a fixed-length value: the length is part of the type, not a
+field that can be wrong at runtime, and every access is bounds-checked because the
+check costs a compare and an index that can be wrong costs a program.
+
+## Declaring one
+
+```tripon
+fn main() -> i32 {
+    let a: [5]i32;
+    a[0] = 10;
+    let i = 1;
+    a[i] += i;          // compound assign works on an element
+    print_i32(len(a));  // 5, known without running anything
+    print_i32(a[0] + a[1]);
+    return 0;
+}
+```
+
+<Session lines={["$ ralt run arr.tp", "5", "11"]} />
+
+The declaration carries the length and the element type together: `[5]i32` is a
+different type from `[5]i64`. `len` is answered by the compiler, since the length
+cannot change — there is nothing to compute at runtime.
+
+An array declared without an initializer is **zero-initialized**, not undefined. This
+is one of the no-UB guarantees and it applies to every local, whatever its type:
+
+<Session
+  lines={["$ ralt run zero.tp", "0", "zero"]}
+/>
+
+## Lengths are checked, so bounds are too
+
+Indexing is bounds-checked on every access, on both backends. Going past the end is a
+defined trap that names the code and the line — not a read of whatever memory
+followed the array:
+
+<Session
+  lines={[
+    "$ ralt run oob.tp",
+    "tripon trap E9002 index-out-of-bounds at oob.tp:6",
+    "$ echo $?",
+    "101",
+  ]}
+/>
+
+Where the compiler can prove an index is in range, the check is not emitted. Where it
+cannot, the check is: the optimizer is allowed to remove work, never to assume the
+index is good. See [traps](/docs/language/traps).
+
+## Arrays are values
+
+Assigning an array copies it. There is no hidden pointer and no aliasing:
+
+```tripon
+fn main() -> i32 {
+    let a: [3]i32;
+    a[0] = 1;  a[1] = 2;  a[2] = 3;
+    let b = a;      // copy
+    b[0] = 99;
+    print_i32(a[0]);
+    print_i32(b[0]);
+    print_i32(len(a));
+    return 0;
+}
+```
+
+<Session lines={["$ ralt run arrcopy.tp", "1", "99", "3"]} />
+
+`a[0]` is still `1`. For the sizes a `kernel`-tier target deals with, that is the
+behaviour you want: no allocation, no reference count, and no question about who owns
+what. Passing an array to a function copies it for the same reason.
+
+## `str` is a UTF-8 slice with no allocation
+
+A string literal lives in the binary's read-only data, so creating one allocates
+nothing, and a `str` is a slice over it:
+
+```tripon
+use tier core;
+
+fn main() -> i32 {
+    let s = "tripon";
+    print_i32(len(s));           // 6
+    if s == "tripon" {           // == on str is content equality, machine-checked
+        print_str("exact match");
+    }
+    print_str("tab:\tand \"quotes\"");   // escapes: \n \t \r \0 \\ \"
+    return 0;
+}
+```
+
+<Session
+  title="examples/strings.tp"
+  lines={["$ ralt run examples/strings.tp", "6", "exact match", 'tab:\tand "quotes"']}
+/>
+
+`==` on two `str` values compares contents, not addresses — an accident of C that
+would otherwise make two equal strings unequal. `len(s)` is the byte length, answered
+the same way `len` of an array is.
+
+Indexing a string yields a `u8`, one byte, and it is bounds-checked like an array:
+
+<Session
+  title="a str index is a u8, not an i32"
+  lines={[
+    "$ ralt check stridx.tp",
+    "stridx.tp:5:15: error: builtin 'print_i32' expects i32, got u8",
+    "  [E0202 type-mismatch] types must match exactly; no implicit conversion exists; use cast<T>(x)",
+  ]}
+/>
+
+<Session
+  title="and it is checked"
+  lines={[
+    "$ ralt run stridx2.tp",
+    "tripon trap E9002 index-out-of-bounds at stridx2.tp:5",
+  ]}
+/>
+
+The `u8` is not a quirk to work around: a byte is what indexing a UTF-8 slice gives
+you, and widening it to `i32` is `cast<i32>(s[i])`, written out.
+
+<div className="callout">
+  <span className="callout-h">Slices, and what is not in v0 yet</span>
+  <p>
+    The grammar reserves <code>[]T</code> for a length-carrying slice and{" "}
+    <code>&amp;T</code> for a read-only borrow, both at tier <code>core</code> and
+    above, and <code>spec/tripon.md</code> specifies them. The bootstrap compiler does
+    not accept either form yet — <code>fn total(xs: []i32)</code> is a parse error, not
+    a silently-different type. Until they land, an array is passed by copy and a{" "}
+    <code>str</code> is the one slice-like type in the language.
+  </p>
+</div>

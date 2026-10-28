@@ -1,0 +1,176 @@
+export const metadata = {
+  title: "The language",
+  description:
+    "The shape of a Tripon file: the lexical surface, the statements that exist, operator precedence, and the things the language deliberately does not have.",
+  alternates: { canonical: "/docs/language" },
+};
+
+# The language
+
+Tripon is a small typed language with a surface a C or JavaScript programmer already
+reads without being taught: braces, semicolons, `fn`, `let`, `while`, `return`. What
+is unusual is what is missing, and every omission is mechanical rather than stylistic —
+each one removes a way for two readers of the same text to disagree.
+
+| | |
+|---|---|
+| Extension | `.tp` |
+| Entry point | `fn main() -> i32`, or `-> ()` for nothing |
+| Comments | `//` to end of line, `/* … */` to the closing pair |
+| A shebang | a leading `#!` line is skipped, so a script can be `#!/usr/bin/env ralt` |
+| Size (spec v0) | the grammar is one EBNF file, roughly a page and a half |
+
+## The lexical surface
+
+Identifiers are ASCII only: a non-ASCII byte in a name is `E0002`, not a silently
+accepted Unicode identifier that two machines might normalise differently. Numbers
+come in the forms you would expect — `123`, `0x1F`, `0o17`, `0b1010`, `3.14`, `1e-9`
+— and anything else is `E0003` with the list of valid forms in the hint. Strings are
+double-quoted with `\n \t \r \0 \\ \"` escapes, or single-quoted when raw. A string
+that never closes is `E0001`.
+
+## Statements
+
+There are nine statements in v0. That is the whole list:
+
+| statement | form |
+|---|---|
+| binding | `let x = 5;` — typed `let x: i64 = 5;`, or uninitialised `let a: [5]i32;` |
+| binding (immutable) | `const LIMIT = 10;` |
+| assignment | `x = y;` and the compound forms `+= -= *= /= %=` |
+| conditional | `if c { … } else if c { … } else { … }` |
+| loop | `while c { … }` |
+| match | `match v { … }` — exhaustive over an enum |
+| return | `return x;`, or `return;` in a function returning `()` |
+| expression | `f(x);` — a call as a statement |
+| block | `{ … }` — a nested scope |
+
+There is no `for`, no `switch`, no `do`, no `goto`, and no `++` or `--`. Iteration is
+`while` over an index you own, which is also what the compiler can reason about
+without proving anything about your iterator.
+
+```tripon
+use tier core;
+
+fn checksum(data: i32, rounds: i32) -> i32 {
+    let acc = 0;
+    let round = 0;
+    while round < rounds {
+        acc = (acc + data) % 65521;
+        round += 1;
+    }
+    return acc;
+}
+```
+
+## Conditions are `bool`, and nothing else
+
+There is no truthiness. `if` and `while` take a `bool`, an `i32` is a type error, and
+`&&`, `||` and `!` are `bool` operators — not bitwise ones wearing a hat.
+
+```tripon
+fn grade(score: i32) -> str {
+    if score >= 90 { return "A"; }
+    else if score >= 75 { return "B"; }
+    return "C";
+}
+
+fn main() -> i32 {
+    let warm = 23 > 20 && true;
+    if warm { print_str(grade(80)); }
+    let cold = !warm && false;   // bool and bool only, && || !
+    if cold { print_str("never"); }
+    return 0;
+}
+```
+
+<Session
+  title="examples/logic.tp"
+  lines={["$ ralt run examples/logic.tp", "B"]}
+/>
+
+## Expressions and precedence
+
+Precedence is the C family's, published in `spec/grammar.ebnf` rather than inferred
+from the implementation. High binds tighter:
+
+| level | operators |
+|---|---|
+| primary | `()` `[]` `.` `f(x)` |
+| power | `**` |
+| unary | `!` `-` `&` |
+| multiplicative | `*` `/` `%` |
+| additive | `+` `-` |
+| comparison | `<` `>` `<=` `>=` |
+| equality | `==` `!=` |
+| logical and | `&&` |
+| logical or | `\|\|` |
+| spread | `?` |
+| assignment | `= += -= *= /= %=` — statement level |
+
+```tripon
+fn main() -> i32 {
+    let int_sum = 7 + 3 * 2;     // 13
+    let circle = 3.14 * 2.0 * 2.0;
+    let half = 9 / 2;            // 4: integer division
+    let rem = 9 % 2;             // 1
+    print_i32(int_sum);
+    print_f64(circle);
+    print_i32(half);
+    print_i32(rem);
+    return 0;
+}
+```
+
+<Session
+  title="examples/math.tp"
+  lines={["$ ralt run examples/math.tp", "13", "12.56", "4", "1"]}
+/>
+
+`print_f64` prints to two decimal places. Division and modulo by zero do not produce
+an undefined result at this line — they trap, with a code and a line number. See
+[traps](/docs/language/traps).
+
+## What is deliberately not here
+
+- **No macros and no preprocessor.** Nothing is expanded before the parser sees it,
+  so a file's meaning is a function of the file.
+- **No operator overloading.** `+` means one thing for each pair of operand types,
+  and the grammar lists them; `==` on `str` is content equality, and on everything
+  else it is the obvious bitwise comparison of a value type.
+- **No implicit conversions**, not even widening. `cast<T>(x)` is the only
+  conversion, and [types](/docs/language/types) covers when it truncates.
+- **No `null` and no `undefined`.** A value that may be missing is `opt<T>`, which
+  [errors as values](/docs/language/errors) covers.
+- **No exceptions.** Failures are `result<T, E>` values; a discarded one will not
+  build.
+- **No garbage collector.** Tier `kernel` has no allocator at all, so `malloc` cannot
+  exist there.
+- **No truthiness, no `++`, no `for`.** Covered above.
+- **No undefined behaviour.** Every arithmetic, indexing and cast edge case has a
+  defined outcome, on both backends.
+
+## Declarations
+
+A file is a sequence of declarations: the tier declaration, `extern "C"` blocks,
+`fn`, `struct`, `enum`, and `const`. The spec reserves `use <module>` and `pub`
+visibility for module-level code; the bootstrap compiler records the tier
+declaration today and the module model lands with the rest of tier 1. Until then,
+one file is one translation unit, and a dependency is another file compiled into it.
+
+## Determinism
+
+The same source compiles to the same bytes, every time, on both `gcc` and `clang`.
+There is no random ordering, no timestamp embedded in the output, and no
+"works on my machine" in the toolchain: `tests/determinism.sh` compiles the corpus
+twice and diffs the results. Everything the compiler prints, including the token
+stream and the parse tree, is stable enough to be a test oracle.
+
+## In this section
+
+- [Types and inference](/docs/language/types) — widths, literal defaults, `cast<T>`
+- [Structs, enums, match](/docs/language/data) — by-value data and exhaustive arms
+- [opt, result and ?](/docs/language/errors) — missing values and failures as values
+- [Arrays and strings](/docs/language/arrays) — fixed arrays, bounds checks, `str`
+- [Tiers](/docs/language/tiers) — the ceiling a file declares
+- [Traps and no-UB](/docs/language/traps) — E9001 to E9004, and exit 101
