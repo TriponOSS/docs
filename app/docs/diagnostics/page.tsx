@@ -29,7 +29,9 @@ export default function Diagnostics() {
         Every entry carries two things a person needs and one thing a program needs.
         The person gets the code and the hint; the program gets the same text as a
         field in the JSON. Run <code>ralt explain E0202</code> for any of them, or
-        read the table below.
+        read the table below. Each row links to a page with a program that produces
+        the code, the exact transcript, the repair, and — where the bootstrap never
+        emits the code — a note saying so.
       </p>
 
       <Session
@@ -77,11 +79,16 @@ export default function Diagnostics() {
           <h2>{band.label}</h2>
           <p>{band.blurb}</p>
           {band.diagnostics.map((d) => (
-            <div className="diag" key={d.code} data-sev={d.severity}>
+            <Link
+              className="diag"
+              key={d.code}
+              href={`/docs/diagnostics/${d.code}`}
+              data-sev={d.severity}
+            >
               <span className="diag-code">{d.code}</span>
               <span className="diag-name">{d.name}</span>
               <span className="diag-hint">{d.hint}</span>
-            </div>
+            </Link>
           ))}
         </section>
       ))}

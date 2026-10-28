@@ -26,6 +26,12 @@ const blurbs: Record<string, string> = {
   "/docs/language/traps": "The no-UB contract, code by code: E9001 to E9004.",
   "/docs/toolchain": "Every subcommand of ralt, every flag, and what it writes.",
   "/docs/diagnostics": "The frozen table: code, severity, name and fix hint.",
+  "/docs/reference": "The lookup: every builtin, operator, statement and literal.",
+  "/docs/reference/builtins": "print_i32 through len, plus some, none, ok, err and cast<T>.",
+  "/docs/reference/operators": "Precedence, operand types, and which operators exist at all.",
+  "/docs/reference/statements": "The nine statement forms, with the diagnostic for each edge.",
+  "/docs/reference/literals": "Number forms, six escapes, identifiers, keywords and comments.",
+  "/docs/reference/extern": "The one C escape hatch: mapping, prototypes, and the cost.",
   "/docs/agents": "The JSON contract, the spans, and why codes never move.",
   "/docs/spec": "grammar.ebnf, the type contract, and errors.csv.",
   "/docs/self-hosting": "The compiler ports written in the language they compile.",
@@ -103,7 +109,8 @@ export default function DocsIndex() {
         version: <code>ralt check --json</code> answers with one array, one object per
         diagnostic, each carrying a code, an exact <code>{"{file,line,col,len}"}</code>{" "}
         span and a fix hint — and every command in the toolchain is deterministic, so
-        the same input always produces the same bytes.
+        the same input always produces the same bytes. If you want the whole contract
+        as one fetch, <Link href="/llms.txt">/llms.txt</Link> is the playbook.
       </p>
     </>
   );

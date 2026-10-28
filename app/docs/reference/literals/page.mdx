@@ -1,0 +1,271 @@
+export const metadata = {
+  title: "Literals and names",
+  description:
+    "The Tripon lexical surface: integer and float forms, the six string escapes, identifiers, keywords, comments and shebang lines — with the exact diagnostics for each edge.",
+  alternates: { canonical: "/docs/reference/literals" },
+};
+
+# Literals and names
+
+A `.tp` file is ASCII. That is not a style rule; the lexer classifies bytes, and
+every byte either belongs to the alphabet or is E0002. The alphabet is small
+enough to list.
+
+## Files
+
+One file is one compilation unit, and its extension is `.tp`. A file may start
+with a shebang line, which is skipped:
+
+```
+#!/usr/bin/env ralt
+```
+
+It must be the first line. Everything else in the file is declarations and
+comments.
+
+## Comments
+
+`//` runs to the end of the line. `/* ... */` runs to the next `*/`, and block
+comments do not nest:
+
+```tripon
+// a line comment
+/* a block comment
+   across two lines */
+fn main() -> i32 { return 0; }
+```
+
+A nested block comment ends at the first `*/`, and the rest is parsed as code:
+
+```tripon
+/* outer /* inner */ still code? */
+fn main() -> i32 { return 0; }
+```
+
+<Session
+  lines={[
+    "$ ralt check nested.tp",
+    "nested.tp:1:22: error: expected a top-level declaration, got identifier",
+    "  [E0101 unexpected-token] see spec/grammar.ebnf for what is legal here",
+  ]}
+/>
+
+## Identifiers
+
+```
+[A-Za-z_][A-Za-z0-9_]*
+```
+
+Case-sensitive. `x` and `X` are different names. An underscore may start a name,
+but a digit may not. Anything outside ASCII is E0002, one diagnostic per byte:
+
+<Session
+  lines={[
+    "$ ralt check e0002.tp",
+    "e0002.tp:4:12: error: unexpected character in source",
+    "  [E0002 invalid-character] ASCII identifiers only; table in spec/tripon.md",
+  ]}
+/>
+
+Two names are the same name if the bytes match. There is no case folding, no
+normalisation and no Unicode identifier equivalence.
+
+## Keywords
+
+These eighteen words are reserved and cannot be bindings:
+
+| | | | |
+|---|---|---|---|
+| `fn` | `let` | `const` | `return` |
+| `if` | `else` | `while` | `match` |
+| `struct` | `enum` | `use` | `tier` |
+| `extern` | `true` | `false` | `cast` |
+| `mut` | `pub` | | |
+
+`mut` and `pub` are reserved before they are usable: both are refused by the
+parser today. Using any keyword as a binding is a parse error at the binding
+position:
+
+<Session
+  lines={[
+    "$ ralt check keyword.tp",
+    "keyword.tp:2:24: error: expected a binding name after let/const, got 'match'",
+    "  [E0101 unexpected-token] see spec/grammar.ebnf for what is legal here",
+  ]}
+/>
+
+Note that `some`, `none`, `ok`, `err` and the type names are not keywords. They
+are identifiers with special meaning in particular positions, which is why a
+local may be named `none` — though that is a good way to confuse the next
+reader.
+
+## Integer literals
+
+| form | example | value |
+|---|---|---|
+| decimal | `123` | 123 |
+| decimal with underscores | `1_000` | 1000 |
+| hexadecimal | `0x1F` | 31 |
+| octal | `0o17` | 15 |
+| binary | `0b1010` | 10 |
+
+```tripon
+use tier core;
+
+fn main() -> i32 {
+    print_i32(0x1F);
+    print_i32(0o17);
+    print_i32(0b1010);
+    print_i32(1_000);
+    return 0;
+}
+```
+
+<Session lines={["31", "15", "10", "1000"]} />
+
+There is no suffix syntax (`1i64`, `1u8`), and no explicit-width literal. The
+type is inferred from the value: an integer literal that fits `i32` is `i32`,
+and one that does not is `i64`.
+
+That rule has one consequence worth writing down. There is no negative literal;
+`-2147483648` is unary minus applied to `2147483648`, which is too large for
+`i32` and therefore has type `i64`. Assigning that to an `i32` is a mismatch:
+
+<Session
+  lines={[
+    "$ ralt check imin.tp",
+    "imin.tp:2:33: error: initializer is i64 but binding is i32; no implicit conversion exists",
+    "  [E0202 type-mismatch] types must match exactly; no implicit conversion exists; use cast<T>(x)",
+  ]}
+/>
+
+Write the minimum as an expression or a cast:
+
+```tripon
+let a: i32 = -2147483647 - 1;
+let b: i32 = cast<i32>(-2147483648);
+```
+
+Both print `-2147483648`.
+
+Leading zeros are decimal, not octal: `08` and `007` are `8` and `7`. A radix
+prefix with no digits is the one literal error with its own code:
+
+<Session
+  lines={[
+    "$ ralt check e0003.tp",
+    "e0003.tp:4:15: error: empty number literal after 0x/0o/0b",
+    "  [E0003 bad-number-literal] forms: 123, 0x1F, 0o17, 0b1010, 3.14, 1e-9",
+  ]}
+/>
+
+A digit outside the radix stops the literal early rather than reporting E0003:
+`0b102` lexes as `0b10` and then a separate `2`, and the parser reports the
+stray token. The `0b` form was checked with `0b1010` above.
+
+## Float literals
+
+| form | example | value |
+|---|---|---|
+| decimal point | `3.14` | 3.14 |
+| exponent | `1e-9`, `2.5e3` | 0.000000001, 2500 |
+| both | `6.02e23` | 6.02 × 10²³ |
+
+A float literal is `f64`. There is no `f32` suffix, so an `f32` binding needs an
+explicit cast:
+
+<Session
+  lines={[
+    "$ ralt check f32.tp",
+    "f32.tp:2:33: error: initializer is f64 but binding is f32; no implicit conversion exists",
+    "  [E0202 type-mismatch] types must match exactly; no implicit conversion exists; use cast<T>(x)",
+  ]}
+/>
+
+`let x: f32 = cast<f32>(1.5);` is the form that works. The reverse direction,
+`f32` to `f64`, is also explicit.
+
+A trailing dot is not a float: `1.` is parsed as a field access on `1` and fails.
+Write `1.0`. `1e` without an exponent is not a literal either.
+
+Floats print with two decimals through `print_f64`; see
+[builtins](/docs/reference/builtins) for why `2.675` prints as `2.67`.
+
+## String literals
+
+A string is double-quoted, single-line, and exactly six escapes exist:
+
+| escape | byte |
+|---|---|
+| `\n` | newline (10) |
+| `\t` | tab (9) |
+| `\r` | carriage return (13) |
+| `\0` | NUL (0) |
+| `\\` | backslash |
+| `\"` | double quote |
+
+```tripon
+use tier core;
+
+fn main() -> i32 {
+    print_str("a\tb");
+    print_str("quote: \" done");
+    print_str("back\\slash");
+    return 0;
+}
+```
+
+<Session
+  lines={["a\tb", 'quote: " done', "back\\slash"]}
+/>
+
+Anything else after a backslash is a lexer error, not a literal backslash:
+
+<Session
+  lines={[
+    "$ ralt check escape.tp",
+    "escape.tp:2:30: error: unknown escape in string",
+    "  [E0002 invalid-character] ASCII identifiers only; table in spec/tripon.md",
+  ]}
+/>
+
+A newline inside the quotes does not continue the string; it is E0001:
+
+<Session
+  lines={[
+    "$ ralt check multiline.tp",
+    "multiline.tp:2:30: error: unterminated string",
+    "  [E0001 unterminated-string] string must close with a double quote on the same line",
+  ]}
+/>
+
+There are no single-quoted strings, no raw strings and no character literals. A
+`'` is an invalid character wherever it appears outside a comment:
+
+<Session
+  lines={[
+    "$ ralt check single.tp",
+    "single.tp:2:30: error: unexpected character in source",
+    "  [E0002 invalid-character] ASCII identifiers only; table in spec/tripon.md",
+  ]}
+/>
+
+There is no interpolation: `"x = {x}"` is the literal seven characters, and `\0`
+ends the string for both `print_str` and `len`. See
+[arrays and strings](/docs/language/arrays).
+
+## `true` and `false`
+
+`true` and `false` are keywords with type `bool`. They are not `1` and `0`, and
+the conversion does not exist in either direction: `cast<i32>(true)` and
+`cast<bool>(1)` are both E0207.
+
+## What has no literal
+
+`null`, `undefined`, `nil`, a tuple, a character, a byte literal and a regex are
+all absent. `null` has a dedicated diagnostic (E0204) because its absence is a
+design decision rather than an omission; the others are simply not in the
+grammar.
+
+Arrays have no literal syntax either. `[1, 2, 3]` is not an expression: declare
+the array and fill it. See [arrays and strings](/docs/language/arrays).

@@ -55,6 +55,17 @@ export const docsNav: NavGroup[] = [
     ],
   },
   {
+    label: "reference",
+    items: [
+      { href: "/docs/reference", label: "Reference" },
+      { href: "/docs/reference/builtins", label: "Builtins" },
+      { href: "/docs/reference/operators", label: "Operators" },
+      { href: "/docs/reference/statements", label: "Statements" },
+      { href: "/docs/reference/literals", label: "Literals and names" },
+      { href: "/docs/reference/extern", label: "extern \"C\"" },
+    ],
+  },
+  {
     label: "more",
     items: [
       { href: "/docs/spec", label: "The spec" },
@@ -86,6 +97,7 @@ ralt/
   src/
     lex.c
     parse.c
+    parse_tree.c
     typecheck.c
     codegen.c
     native.c
@@ -93,6 +105,9 @@ ralt/
     doc.c
     lsp.c
     deps.c
+    util.c
+    diag.c
+    common.h
     main.c
 selfhost/
   lexer.tp
@@ -101,15 +116,24 @@ selfhost/
 examples/
   hello.tp
   fib.tp
+  logic.tp
+  math.tp
+  opt_some.tp
   report.tp
+  result_ok.tp
+  strings.tp
+  tiers.tp
 tests/
   cases/
   expected/
   run.sh
   determinism.sh
+  selfhost.sh
+  deps_smoke.sh
+  lsp_smoke.sh
 bench/
   build_bench.sh
-stdlib/
+LICENSE
 README.md
 PLAN.md
 Makefile`;

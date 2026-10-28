@@ -297,3 +297,28 @@
   color: var(--muted);
   flex: 1 1 30ch;
 }
+
+/* the table row is the link to that code's page */
+a.diag {
+  color: inherit;
+  text-decoration-line: none;
+  padding: 0.7em 0;
+  margin: 0;
+}
+
+@media (hover: hover) {
+  a.diag:hover {
+    background: var(--raise);
+    color: inherit;
+  }
+
+  a.diag:hover .diag-name,
+  a.diag:hover .diag-hint {
+    color: var(--ink);
+  }
+}
+
+a.diag:focus-visible {
+  background: var(--raise);
+  color: inherit;
+}

@@ -1,0 +1,99 @@
+export const metadata = {
+  title: "Reference",
+  description:
+    "Every Tripon builtin, operator, statement and literal, with the exact compiler behaviour, the refusals and the run-time traps — and an honest list of what the v0 bootstrap does not accept yet.",
+  alternates: { canonical: "/docs/reference" },
+};
+
+# Reference
+
+The tour teaches the shape of the language. This section is the lookup. Each
+entry answers the same four questions:
+
+- what does it take, and what does it give back;
+- which programs the compiler refuses, in the compiler's own words;
+- what happens at run time, including the trap if there is one;
+- what the spec says versus what the bootstrap in `ralt/` actually accepts.
+
+That last question is why the reference is longer than a cheat sheet. Tripon is
+a young language with a published spec and a working compiler, and the two are
+not the same size yet. Where they differ, this section says so instead of
+quietly documenting the spec.
+
+## The pages
+
+| page | what it covers |
+|---|---|
+| [Builtins](/docs/reference/builtins) | the five prelude functions, the three constructor pairs, `cast<T>` |
+| [Operators](/docs/reference/operators) | arithmetic, comparison, logic, assignment, `?`, and the precedence table |
+| [Statements](/docs/reference/statements) | `let`, `const`, assignment, `if`, `while`, `match`, `return`, declarations |
+| [Literals and names](/docs/reference/literals) | numbers, strings, escapes, identifiers, keywords, comments |
+| [`extern "C"`](/docs/reference/extern) | the one escape hatch, its type mapping, and what it costs |
+| [Diagnostic codes](/docs/diagnostics) | every code, each with a page of its own |
+
+## What the bootstrap accepts today
+
+The grammar in `spec/grammar.ebnf` is the source of truth for what Tripon is
+meant to be. The table below is what `ralt` does with each construct right now,
+measured against the build in this repo. A construct marked *refused* is not
+silently miscompiled; it fails with a diagnostic.
+
+| construct | spec | v0 bootstrap |
+|---|---|---|
+| `**` exponentiation | listed as `Power` in the grammar | refused: the parser stops at the second `*` |
+| bitwise `& \| ^ ~ << >>` | not in the grammar | refused; `&` is reserved for address-of |
+| slices `[]T` | declared in the type grammar | refused: `expected an array length` |
+| references `&T` | declared in the type grammar | not usable in v0 |
+| array literals `[1, 2, 3]` | not in the grammar either | refused; arrays are declared, then filled |
+| array parameters | not in the grammar | refused: `arrays are local-only in v0` |
+| top-level `const` | `ConstDecl` is a declaration | refused: `expected a top-level declaration, got 'const'` |
+| `pub` | a keyword | refused: `expected a top-level declaration, got 'pub'` |
+| `use <module>` | `UseDecl` | refused: `expected 'tier' after use` |
+| `for`, `loop`, `break`, `continue` | not in the grammar | refused, usually as an E0101 cascade |
+| `let mut` | `mut` is a keyword | refused: `expected a binding name after let/const, got 'mut'` |
+| single-quoted strings | grammar mentions a raw single-quoted form | refused: `'` is an invalid character |
+| chained assignment `a = b = c` | assignments are statement-level | refused: `expected ';' to end the statement` |
+| tier enforcement | E0301 / E0302 | parsed, recorded, not checked |
+| match arms as `-> expression` | grammar still says `->` | the compiler parses `=> { ... }`; the grammar file lags |
+
+Everything else on these pages was run. The transcripts are the compiler's
+output, not a cleaned-up version of it.
+
+## Three ways a name can exist
+
+A name in expression position resolves to exactly one of three things:
+
+1. a binding introduced by `let` or `const`, or a parameter of the enclosing
+   function;
+2. a builtin from the prelude, available with no import;
+3. a function declared in an `extern "C"` block and linked from the platform.
+
+There is no fourth way: there is no implicit libc prelude, no ambient module, and
+no automatic import. If a name is not one of those three, it is E0201, and the
+message names the name.
+
+## Reading a signature
+
+Signatures in this section use the language's own type syntax. `-> ()` is the
+unit return, and a function with no `->` is treated as returning unit. `[N]T` is
+an array of `N` values of type `T`.
+
+```tripon
+fn print_i32(v: i32) -> ();
+fn len(a: [3]i32) -> i32;
+```
+
+There is no overloading and no default argument. One name, one signature.
+
+## The order of a build
+
+For reference, the passes a file goes through, because a diagnostic's band is
+named after the pass that emits it:
+
+| pass | source | what it decides |
+|---|---|---|
+| lex | `ralt/src/lex.c` | bytes to tokens |
+| parse | `ralt/src/parse.c` | tokens to the syntax tree |
+| check | `ralt/src/typecheck.c` | names, types, exhaustiveness, mutability |
+| emit | `ralt/src/codegen.c` | C99, or x86-64 through `native.c` |
+| run | the binary | traps, exit status |

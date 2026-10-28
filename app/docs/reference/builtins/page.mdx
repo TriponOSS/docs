@@ -1,0 +1,265 @@
+export const metadata = {
+  title: "Builtins",
+  description:
+    "The Tripon prelude: print_i32, print_i64, print_f64, print_str and len, plus some, none, ok, err and cast<T> — signatures, exact output formats and refusals.",
+  alternates: { canonical: "/docs/reference/builtins" },
+};
+
+# Builtins
+
+The prelude is small on purpose. Five functions plus four constructors and one
+operator are available with no import, at tier `core` and above. There is no
+`std` namespace to search and no trait to implement: if a name is not on this
+page, it is not built in.
+
+The five functions are declared in one table in `ralt/src/typecheck.c`:
+
+```c
+{"print_i32", TY_VOID, TY_I32},
+{"print_i64", TY_VOID, TY_I64},
+{"print_f64", TY_VOID, TY_F64},
+{"print_str", TY_VOID, TY_STR},
+{"len",       TY_I32, TY_STR},
+```
+
+`len` is the one with a second rule: on an array the checker accepts it
+separately and returns the array's compile-time length. Everything else about
+the prelude follows from that table.
+
+## `print_i32(v: i32) -> ()`
+
+Writes the decimal form of `v`, then a newline, to standard output.
+
+| | |
+|---|---|
+| argument | `i32` exactly |
+| returns | `()` |
+| output | optional `-`, then digits, then `\n` |
+| refuses | an `i64`, a `u8`, a float — any other type is E0202 |
+
+```tripon
+print_i32(-42);
+```
+
+<Session lines={["-42"]} />
+
+No width, no padding, no radix, no format string. `print_i32(0x1F)` prints
+`31`, because the literal is already a value by the time the call sees it.
+
+Passing a wider integer is not a warning and not a silent truncation:
+
+<Session
+  lines={[
+    "$ ralt check wide.tp",
+    "wide.tp:2:46: error: builtin 'print_i32' expects i32, got i64",
+    "  [E0202 type-mismatch] types must match exactly; no implicit conversion exists; use cast<T>(x)",
+  ]}
+/>
+
+## `print_i64(v: i64) -> ()`
+
+The same format at 64 bits. The full signed range prints exactly:
+
+```tripon
+print_i64(9223372036854775807);
+```
+
+<Session lines={["9223372036854775807"]} />
+
+Use it when the value really is 64-bit. Widening an `i32` to print it is not
+free and not automatic; `cast<i64>(x)` says so explicitly.
+
+## `print_f64(v: f64) -> ()`
+
+Writes the value with exactly two digits after the decimal point, then a
+newline. The implementation is `printf("%.2f", v)`, and that decides every edge
+case on this page.
+
+```tripon
+print_f64(1.5);
+print_f64(0.005);
+print_f64(2.675);
+print_f64(-2.005);
+```
+
+<Session lines={["1.50", "0.01", "2.67", "-2.00"]} />
+
+Three consequences worth knowing:
+
+- `1.5` prints as `1.50`; the trailing zero is part of the format, not a
+  significant digit.
+- Rounding is the C library's, on the binary value. `2.675` is not exactly
+  representable, so it rounds to `2.67`, not `2.68`.
+- Very large values print in full with `.00` appended:
+  `print_f64(1e20)` gives `100000000000000000000.00`.
+
+There is no `print_f32`. Cast to `f64` at the call if a value is `f32`:
+`print_f64(cast<f64>(x))`.
+
+An integer argument is refused rather than promoted:
+
+<Session
+  lines={[
+    "$ ralt check e0202.tp",
+    "e0202.tp:4:15: error: builtin 'print_f64' expects f64, got i32",
+    "  [E0202 type-mismatch] types must match exactly; no implicit conversion exists; use cast<T>(x)",
+  ]}
+/>
+
+## `print_str(s: str) -> ()`
+
+Writes the bytes of `s` up to the first NUL, then a newline.
+
+```tripon
+print_str("hello");
+```
+
+<Session lines={["hello"]} />
+
+`str` is a NUL-terminated byte sequence, and the prelude does not carry a length
+alongside it. `print_str` therefore stops at `\0`:
+
+```tripon
+print_str("a\0b");
+```
+
+<Session lines={["a"]} />
+
+The bytes after the NUL are still in the literal; they are simply not printed,
+and `len` does not count them. There is no escape for a quote, a tab or a
+newline beyond the six listed in [literals](/docs/reference/literals), and no
+interpolation: `print_str("x = {x}")` in Tripon is not a template, it is the
+literal characters.
+
+## `len(x) -> i32`
+
+Two rules, one name.
+
+| argument | result | when it is computed |
+|---|---|---|
+| `str` | `strlen(x)` | at run time |
+| `[N]T` | `N` | at check time, as a constant |
+
+```tripon
+use tier core;
+
+fn main() -> i32 {
+    let a: [7]i32;
+    print_i32(len("hello"));
+    print_i32(len(a));
+    return 0;
+}
+```
+
+<Session lines={["5", "7"]} />
+
+For an array the result is the declared length in elements, not bytes. For a
+`str` it is the number of bytes before the terminator: `len("a\0b")` is `1`, and
+`len("")` is `0`.
+
+Neither case is a generic container length. `len` on an `i32` is refused with the
+argument's type named:
+
+<Session
+  lines={[
+    "$ ralt check len.tp",
+    "len.tp:3:34: error: len() takes an array or str, got i32",
+    "  [E0202 type-mismatch] types must match exactly; no implicit conversion exists; use cast<T>(x)",
+  ]}
+/>
+
+The return type is always `i32`, even on a 64-bit target. An array's length is
+part of its type, so `len` is as constant as `[N]`; a `while i < len(a)` loop is
+comparing two `i32`s, with no cast on either side.
+
+## Constructors: `some`, `none`, `ok`, `err`
+
+These four are not in the builtin table — the parser and checker special-case
+them — but they are part of the surface and behave like the functions they look
+like.
+
+| form | type | meaning |
+|---|---|---|
+| `some(v)` | `opt<T>` where `T` is the type of `v` | a present value |
+| `none` | `opt<T>`, inferred from context | an absent value |
+| `ok(v)` | `result<T, E>` with `E` from context | success |
+| `err(e)` | `result<T, E>` with `T` from context | failure, carrying `e` |
+
+`none` takes no parentheses and no type argument. Its type comes from where the
+value is used: a `return none;` in `fn f() -> opt<i32>` is `opt<i32>`.
+
+There is no `unwrap`, no `expect`, no `is_some`. The only way to get the value
+out is `match` or `?`, which is the point of the type; see
+[opt, result and ?](/docs/language/errors).
+
+The parameter of an `opt` is narrower than the full type set in v0:
+
+<Session
+  lines={[
+    "$ ralt check nested_opt.tp",
+    "nested_opt.tp:2:31: error: opt<str> is not v0: opt carries a scalar or struct",
+    "  [E0202 type-mismatch] types must match exactly; no implicit conversion exists; use cast<T>(x)",
+  ]}
+/>
+
+`opt<i32>`, `opt<f64>`, `opt<bool>` and `opt<SomeStruct>` work. `opt<str>`,
+`opt<opt<T>>` and `opt<[N]T>` are refused with that message.
+
+## `cast<T>(x)`
+
+The one conversion. It is an expression, not a function call: the target type is
+written in the angle brackets and nothing is inferred.
+
+| from | to | result |
+|---|---|---|
+| integer | integer | wraps to the target width |
+| integer | float | exact for values up to 2^53 |
+| float | float | nearest representable value, `f32` may round |
+| float | integer | truncates toward zero; out of range traps E9004 |
+| `bool` | anything | refused, E0207 |
+| `str` | anything | refused, E0207 |
+| anything | `bool` | refused, E0207 |
+| struct or enum | anything | refused, E0207 |
+
+```tripon
+use tier core;
+
+fn main() -> i32 {
+    print_i32(cast<i32>(cast<i8>(200)));   // wraps
+    print_i32(cast<i32>(3.99));            // truncates
+    print_i32(cast<i32>(-3.99));           // truncates toward zero
+    print_f64(cast<f64>(7));               // exact
+    return 0;
+}
+```
+
+<Session lines={["-56", "3", "-3", "7.00"]} />
+
+`cast<i8>(200)` is `-56` with no trap: integer-to-integer narrowing is defined as
+wrapping. `cast<i32>(3.5e9)` is different — there is no `i32` for that value, so
+the program traps E9004 rather than pick one. The full matrix, with the trap
+transcripts, is on [types and inference](/docs/language/types).
+
+## What is not a builtin
+
+There is no allocation, no file I/O, no string comparison function, no
+concatenation, no `sqrt`, no `min`, no parsing and no map. `str` supports `==`,
+`!=` and `len`; nothing else. Arrays support indexing and `len`; nothing else.
+
+That is not an oversight to work around with a cast. It is the size of the
+surface at tier `core`, and anything larger is meant to arrive as a library at a
+higher tier, or through [`extern "C"`](/docs/reference/extern).
+
+## Every builtin refusal, in one place
+
+| call | message |
+|---|---|
+| `print_i32(x: i64)` | `builtin 'print_i32' expects i32, got i64` |
+| `print_f64(x: i32)` | `builtin 'print_f64' expects f64, got i32` |
+| `len(x: i32)` | `len() takes an array or str, got i32` |
+| `print_str(x: i32)` | `builtin 'print_str' expects str, got i32` |
+| `print_i32()` | `builtin 'print_i32' takes 1 argument(s), got 0` |
+| `print_i32(a, b)` | `builtin 'print_i32' takes 1 argument(s), got 2` |
+
+All six carry `E0202 type-mismatch` and the same hint: types must match
+exactly, and `cast<T>(x)` is the way to make them.

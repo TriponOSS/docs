@@ -1,0 +1,368 @@
+export const metadata = {
+  title: "Statements",
+  description:
+    "Every statement form in Tripon: let, const, assignment, if, while, match, return, expression statements, and the declarations that sit around a function body.",
+  alternates: { canonical: "/docs/reference/statements" },
+};
+
+# Statements
+
+A function body is a block: statements between braces, executed in order. There
+are nine forms, and the list is closed.
+
+| form | written as |
+|---|---|
+| binding | `let name: T = expr;` or `const name = expr;` |
+| assignment | `name = expr;` and the five compound forms |
+| conditional | `if expr { } else if expr { } else { }` |
+| loop | `while expr { }` |
+| match | `match expr { pattern => { } ... }` |
+| return | `return expr;` or `return;` |
+| expression | `call(args);` |
+| block | `{ ... }` |
+| declaration | `fn`, `struct`, `enum`, `use tier`, `extern` |
+
+Every statement ends in `;` except a block and a declaration. There is no
+implicit return: the last expression of a body is not its value.
+
+## `let`
+
+```tripon
+let n = 3;              // inferred: i32
+let m: i32 = 3;         // explicit
+let a: [4]i32;          // declared, zero-initialised
+let s: str;             // empty string
+```
+
+The type comes from the annotation, or from the initializer when there is no
+annotation. With neither, the checker cannot invent one:
+
+<Session
+  lines={[
+    "$ ralt check let.tp",
+    "let.tp:2:20: error: binding with no type and no initializer cannot be inferred",
+    "  [E0101 unexpected-token] see spec/grammar.ebnf for what is legal here",
+  ]}
+/>
+
+Note the code: it is E0101, not E0202, even though the message is about
+inference. That is the bootstrap's behaviour, reproduced here rather than
+tidied.
+
+An uninitialised binding is zeroed, never undefined. There is no "may be
+uninitialised" analysis because there is nothing to analyse:
+
+| type | zero value | prints as |
+|---|---|---|
+| `i8` … `i64`, `isize` | `0` | `0` |
+| `u8` … `u64`, `usize` | `0` | `0` |
+| `f32`, `f64` | `0.0` | `0.00` |
+| `bool` | `false` | — |
+| `str` | empty | blank line |
+| struct | every field zeroed | — |
+| enum | first variant | — |
+| `[N]T` | every element zeroed | — |
+
+`let` is mutable. There is no `mut` keyword in a binding: it is reserved in the
+lexer and refused by the parser.
+
+Redeclaring a name in the same block shadows it and produces a warning, not an
+error:
+
+<Session
+  lines={[
+    "$ ralt check shadow.tp",
+    "shadow.tp:5:5: warn: 'x' shadows an existing binding",
+    "  [E0603 shadowing] name shadows an existing binding in scope; rename",
+    "$ echo $?",
+    "0",
+  ]}
+/>
+
+A `let` inside a nested block is scoped to that block and does not warn; it also
+does not escape:
+
+```tripon
+use tier core;
+
+fn main() -> i32 {
+    let x = 1;
+    if x == 1 {
+        let x = 2;
+        print_i32(x);   // 2
+    }
+    print_i32(x);       // 1
+    return 0;
+}
+```
+
+<Session lines={["2", "1"]} />
+
+## `const`
+
+`const` is the immutable form. It takes an optional annotation and a required
+initializer, and it lives in a function body — a top-level `const` is refused by
+the v0 parser.
+
+```tripon
+const limit = 10;
+const ratio: f64 = 2.5;
+```
+
+Reassignment is E0203:
+
+<Session
+  lines={[
+    "$ ralt check const.tp",
+    "const.tp:5:5: error: k is const and cannot be reassigned",
+    "  [E0203 mutability-required] declared const but reassigned; switch to let",
+  ]}
+/>
+
+`const` is not a compile-time constant expression system. It is a binding you
+may not assign to; reading it is an ordinary local read.
+
+## Assignment
+
+```tripon
+x = 4;
+x += 1;   x -= 1;   x *= 2;   x /= 2;   x %= 3;
+```
+
+The left side is a mutable binding (`let` or a parameter), a field path
+(`p.x = 1;`) or an array element (`a[i] = 1;`). Assignment is a statement, so it
+has no value:
+
+<Session
+  lines={[
+    "$ ralt check chain.tp",
+    "chain.tp:2:48: error: expected ';' to end the statement, got '='",
+    "  [E0101 unexpected-token] see spec/grammar.ebnf for what is legal here",
+  ]}
+/>
+
+`x++` and `x--` are not operators. Write `x += 1`.
+
+A parameter is mutable inside the function, and it is a copy: writing it does not
+touch the caller's variable. That is true for structs and arrays too — there are
+no reference parameters in v0.
+
+## `if`
+
+```tripon
+if n == 0 {
+    print_str("zero");
+} else if n > 0 {
+    print_str("positive");
+} else {
+    print_str("negative");
+}
+```
+
+Braces are mandatory, including for a one-statement body:
+
+<Session
+  lines={[
+    "$ ralt check braces.tp",
+    "braces.tp:2:41: error: expected '{', got identifier",
+    "  [E0101 unexpected-token] see spec/grammar.ebnf for what is legal here",
+  ]}
+/>
+
+The condition must be a `bool`, exactly. There is no truthiness and no
+parenthesised condition is required — `if (x)` parses, but only because `(x)` is
+a grouped expression.
+
+`else` is optional and `else if` is ordinary nesting. An `if` is a statement, not
+an expression: it has no value and cannot appear on the right of `=`.
+
+## `while`
+
+```tripon
+use tier core;
+
+fn main() -> i32 {
+    let i = 0;
+    let sum = 0;
+    while i < 5 {
+        sum += i;
+        i += 1;
+    }
+    print_i32(sum);
+    return 0;
+}
+```
+
+<Session lines={["10"]} />
+
+Same condition rule as `if`. There is no `break`, no `continue` and no `for`; a
+loop ends when its condition is false or when the function returns. An
+unbounded loop is written `while true { }`.
+
+## `match`
+
+`match` is a statement. It takes a value and a block of arms; each arm is a
+pattern, `=>`, and a block. Arms are tried top to bottom.
+
+```tripon
+use tier core;
+
+enum Shape { Circle(i32), Rect(i32, i32), Empty }
+
+fn area(s: Shape) -> i32 {
+    match s {
+        Shape::Circle(r) => { return 3 * r * r; }
+        Shape::Rect(w, h) => { return w * h; }
+        Shape::Empty => { return 0; }
+    }
+}
+
+fn main() -> i32 {
+    print_i32(area(Shape::Circle(2)));
+    print_i32(area(Shape::Rect(3, 4)));
+    return 0;
+}
+```
+
+<Session lines={["12", "12"]} />
+
+Patterns in v0:
+
+| pattern | matches |
+|---|---|
+| `Variant` | an enumerator with no payload |
+| `Variant(a, b)` | an enumerator, binding its payload fields |
+| `some(x)` / `none` | an `opt<T>` |
+| `ok(x)` / `err(e)` | a `result<T, E>` |
+| an integer literal | that value, when the subject is an integer |
+| `_` | anything not covered above |
+
+`_` is deliberate coverage: a `match` with a `_` arm is exhaustive by
+definition, even if it lists nothing else. Without it, every variant must be
+present, and the missing one is named:
+
+<Session
+  lines={[
+    "$ ralt check e0206.tp",
+    "e0206.tp:7:5: error: match over 'E' misses variant 'C'",
+    "  [E0206 non-exhaustive-match] match must cover every enum variant or add a deliberate _ arm",
+  ]}
+/>
+
+A repeated variant is E0212, at the second arm. Commas between arms are
+optional.
+
+An arms body is a block, not an expression. A `return` inside it leaves the
+function; a `match` used for its value has to be written today as a `match` whose
+arms each `return`, as in `area` above. Match-as-expression is a later slice and
+is called out on [structs, enums and match](/docs/language/data).
+
+Two things do not work as match subjects in the same way as elsewhere:
+
+- enums do not support `==`; matching a variant is the test, not comparing it;
+- matching an integer with `_` works, but matching a `str` is not implemented.
+
+## `return`
+
+`return expr;` leaves the function with a value. `return;` leaves a unit
+function. The forms are checked against the signature:
+
+<Session
+  lines={[
+    "$ ralt check no_value.tp",
+    "no_value.tp:3:17: error: return needs a value; the fn returns one",
+    "  [E0202 type-mismatch] types must match exactly; no implicit conversion exists; use cast<T>(x)",
+  ]}
+/>
+
+<Session
+  lines={[
+    "$ ralt check ret.tp",
+    "ret.tp:3:13: error: fn returns () but return carries a value",
+    "  [E0202 type-mismatch] types must match exactly; no implicit conversion exists; use cast<T>(x)",
+  ]}
+/>
+
+A function that returns `i32` and falls off the end without a `return` is not
+diagnosed in v0. Write the `return`; the compiler's silence here is a gap, not a
+permission slip.
+
+## Expression statements
+
+A call whose result is `()` can stand alone:
+
+```tripon
+print_str("done");
+```
+
+A value may be evaluated and dropped, with one exception: a `result<T, E>` that
+is neither matched nor spread is E0205. Dropping an `i32` is allowed; dropping
+an error is not.
+
+## `{ ... }`
+
+A bare block is a statement. It opens a scope and executes in order. It is
+useful for a temporary binding and it is the only form of scoping besides a
+function.
+
+## Declarations around a body
+
+| declaration | shape |
+|---|---|
+| function | `fn name(p: T, ...) -> R { ... }` |
+| struct | `struct Name { field: T; ... }` |
+| enum | `enum Name { A, B(i32), C(i32, i32) }` |
+| tier | `use tier kernel;` (or `core`, `std`, `full`) |
+| C function | `extern "C" { fn name(p: T) -> R; }` |
+
+Functions may be called before they are defined in the file; there are no
+forward declarations. There is no overloading: one name, one signature.
+
+A struct is constructed with all of its fields:
+
+```tripon
+struct P { x: i32; y: i32; }
+
+let p = P { x: 1, y: 2 };
+let q = P { x: n, y: n * 2 };
+```
+
+A field may use the shorthand `P { x }` when the binding has the same name. A
+trailing comma is allowed. A missing field is E0202:
+
+<Session
+  lines={[
+    "$ ralt check struct.tp",
+    "struct.tp:3:28: error: missing field 'y' in struct init",
+    "  [E0202 type-mismatch] types must match exactly; no implicit conversion exists; use cast<T>(x)",
+  ]}
+/>
+
+Structs are values, copied on assignment and on call:
+
+```tripon
+use tier core;
+
+struct P { x: i32; }
+
+fn bump(p: P) -> i32 {
+    p.x = 9;
+    return p.x;
+}
+
+fn main() -> i32 {
+    let p = P { x: 1 };
+    print_i32(bump(p));
+    print_i32(p.x);
+    return 0;
+}
+```
+
+<Session lines={["9", "1"]} />
+
+## What is not a statement
+
+`for`, `loop`, `break`, `continue`, `defer`, `goto`, `switch`, `try`, `throw`
+and `do` are not statements and not keywords. Most of them produce an E0101 or
+an E0201 that names the identifier; the [reference index](/docs/reference) has
+the exact list.

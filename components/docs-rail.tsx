@@ -8,6 +8,14 @@ import { docsNav } from "@/lib/site";
 export function DocsRail() {
   const pathname = usePathname();
 
+  /* A nested page keeps its section current: /docs/diagnostics/E0202 lights up
+     Diagnostic codes, not Overview. The longest matching href wins, so /docs
+     stays quiet on every child page. */
+  const active = docsNav
+    .flatMap((group) => group.items)
+    .filter((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
+
   return (
     <nav className="docs-rail" aria-label="Documentation">
       {docsNav.map((group) => (
@@ -18,7 +26,7 @@ export function DocsRail() {
               <li key={item.href}>
                 <Link
                   href={item.href}
-                  aria-current={pathname === item.href ? "page" : undefined}
+                  aria-current={active === item.href ? "page" : undefined}
                 >
                   {item.label}
                 </Link>

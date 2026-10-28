@@ -53,6 +53,7 @@ const TYPES = new Set([
 
 const BUILTINS = new Set([
   "print_i32",
+  "print_i64",
   "print_f64",
   "print_str",
   "len",

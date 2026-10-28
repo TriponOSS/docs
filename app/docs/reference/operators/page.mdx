@@ -1,0 +1,316 @@
+export const metadata = {
+  title: "Operators",
+  description:
+    "Every Tripon operator with its precedence, its exact operand types and the traps it can raise — including the operators the grammar lists but the bootstrap does not accept yet.",
+  alternates: { canonical: "/docs/reference/operators" },
+};
+
+# Operators
+
+Tripon has a C-family operator set with one omission and one rule: there are no
+implicit conversions, so an operator either has a definition for the exact pair
+of types on either side, or the expression is an error. Nothing is promoted to
+make an expression compile.
+
+## Precedence
+
+Highest first. The table is copied from the comment block at the foot of
+`spec/grammar.ebnf`.
+
+| level | operators | associativity |
+|---|---|---|
+| 1 | `()` `[]` `.` | left, postfix |
+| 2 | `!` `-` (unary) | right |
+| 3 | `*` `/` `%` | left |
+| 4 | `+` `-` | left |
+| 5 | `<` `>` `<=` `>=` | left |
+| 6 | `==` `!=` | left |
+| 7 | `&&` | left |
+| 8 | `\|\|` | left |
+| 9 | `=` `+=` `-=` `*=` `/=` `%=` | statement-level only |
+
+The grammar also lists `**` above unary, and `&` in the unary row. Neither is
+usable in the bootstrap: `**` is refused by the parser and `&` exists for
+address-of, which arrives with borrows. See the [reference index](/docs/reference)
+for the full list of spec-versus-bootstrap gaps.
+
+Parentheses are ordinary grouping and can always be used to make the order
+explicit. There is no comma operator and no chained comparison.
+
+## Arithmetic
+
+| operator | integer | float |
+|---|---|---|
+| `+` | yes, traps on overflow | yes |
+| `-` | yes, traps on overflow | yes |
+| `*` | yes, traps on overflow | yes |
+| `/` | yes, truncates toward zero; traps on zero | yes, IEEE division |
+| `%` | yes, sign follows the dividend; traps on zero | refused |
+
+```tripon
+use tier core;
+
+fn main() -> i32 {
+    print_i32(7 / 2);
+    print_i32(-7 / 2);
+    print_i32(-7 % 2);
+    print_i32(7 % -2);
+    print_f64(7.0 / 2.0);
+    return 0;
+}
+```
+
+<Session lines={["3", "-3", "-1", "1", "3.00"]} />
+
+Integer division truncates toward zero, which is C's rule and not floor
+division: `-7 / 2` is `-3`, not `-4`. The remainder is the value that satisfies
+`a == (a / b) * b + a % b`, so its sign follows `a`.
+
+`%` on floats has no definition:
+
+<Session
+  lines={[
+    "$ ralt check mod.tp",
+    "mod.tp:3:30: error: '%' needs integer operands",
+    "  [E0202 type-mismatch] types must match exactly; no implicit conversion exists; use cast<T>(x)",
+  ]}
+/>
+
+Both operands must be the same type. `i32 + i64` is refused before any range
+question is asked, and so is `i32 + f64`:
+
+<Session
+  lines={[
+    "$ ralt check bad.tp",
+    "bad.tp:5:13: error: i32 and f64 do not share an operator; no implicit conversion exists",
+    "  [E0202 type-mismatch] types must match exactly; no implicit conversion exists; use cast<T>(x)",
+  ]}
+/>
+
+Every integer operation that can leave the type's range traps E9001 rather than
+wrap. `ralt run -fast` opts into wrapping for the whole program:
+
+<Session
+  lines={[
+    "$ ralt run ovf.tp",
+    "tripon trap E9001 integer-overflow-trap at ovf.tp:5",
+    "$ ralt run -fast ovf.tp",
+    "-2147483648",
+  ]}
+/>
+
+## Comparison
+
+| operator | operand types | result |
+|---|---|---|
+| `<` `>` `<=` `>=` | integer or float, both sides identical | `bool` |
+| `==` `!=` | integers, floats, `bool`, `str` | `bool` |
+| `==` `!=` | struct, enum, array | refused, E0207 |
+
+Comparison operators are numeric only. Strings do not order:
+
+<Session
+  lines={[
+    "$ ralt check lt.tp",
+    "lt.tp:3:23: error: '< > <= >=' need numeric operands",
+    "  [E0202 type-mismatch] types must match exactly; no implicit conversion exists; use cast<T>(x)",
+    "lt.tp:3:23: error: condition must be bool",
+    "  [E0202 type-mismatch] types must match exactly; no implicit conversion exists; use cast<T>(x)",
+  ]}
+/>
+
+The second line is cascade from the first: a failed comparison has no type, so
+`if` then reports that its condition is not `bool`.
+
+`str` equality is defined and compares bytes:
+
+```tripon
+use tier core;
+
+fn main() -> i32 {
+    if "abc" == "abc" { print_str("same"); }
+    if "abc" != "abd" { print_str("diff"); }
+    return 0;
+}
+```
+
+<Session lines={["same", "diff"]} />
+
+Struct, enum and array equality are not defined, and there is no cast that
+creates them. The message says so:
+
+<Session
+  lines={[
+    "$ ralt check eq.tp",
+    "eq.tp:8:8: error: composite equality on P is not defined; no cast exists for it",
+    "  [E0207 implicit-conversion-denied] no implicit conversions exist; use cast<T>(x) for exact or explicit lossy casts",
+  ]}
+/>
+
+Write the comparison out: `a.x == b.x && a.y == b.y`. For arrays, a loop.
+
+## Logic
+
+| operator | operands | result |
+|---|---|---|
+| `&&` | `bool`, `bool` | `bool`, short-circuits on `false` |
+| `\|\|` | `bool`, `bool` | `bool`, short-circuits on `true` |
+| `!` | `bool` | `bool` |
+
+There is no truthiness. `0`, `""` and a non-null pointer are not conditions;
+only a `bool` is. `!` on an integer is refused:
+
+<Session
+  lines={[
+    "$ ralt check not.tp",
+    "not.tp:3:29: error: '!' requires bool",
+    "  [E0202 type-mismatch] types must match exactly; no implicit conversion exists; use cast<T>(x)",
+  ]}
+/>
+
+Short-circuiting is real, not a promise. Each side prints as it is evaluated:
+
+```tripon
+use tier core;
+
+fn t(s: str) -> bool { print_str(s); return true; }
+fn f(s: str) -> bool { print_str(s); return false; }
+
+fn main() -> i32 {
+    if t("a") && f("b") { }
+    if f("c") && t("d") { }
+    if t("e") || t("f") { }
+    if f("g") || f("h") { }
+    return 0;
+}
+```
+
+<Session lines={["a", "b", "c", "e", "g", "h"]} />
+
+Line by line: `a` is evaluated and `b` is, because `&&` needs the right side when
+the left is true; `d` is never evaluated because `c` was false; `f` is never
+evaluated because `e` was true; both `g` and `h` are evaluated because `||` needs
+the right side when the left is false.
+
+A condition must be a `bool`, exactly:
+
+<Session
+  lines={[
+    "$ ralt check cond.tp",
+    "cond.tp:2:34: error: condition must be bool",
+    "  [E0202 type-mismatch] types must match exactly; no implicit conversion exists; use cast<T>(x)",
+  ]}
+/>
+
+That applies to `if` and `while` alike, and there is no `cast<bool>` to get
+around it.
+
+## Assignment
+
+Assignment is a statement, not an expression. It has no value, so it cannot be
+nested in a larger expression and cannot be chained.
+
+| form | meaning |
+|---|---|
+| `x = e;` | replace the value |
+| `x += e;` | `x = x + e` |
+| `x -= e;` | `x = x - e` |
+| `x *= e;` | `x = x * e` |
+| `x /= e;` | `x = x / e` |
+| `x %= e;` | `x = x % e` |
+
+```tripon
+use tier core;
+
+fn main() -> i32 {
+    let x = 1;
+    x += 2;   // 3
+    x -= 1;   // 2
+    x *= 3;   // 6
+    x /= 2;   // 3
+    x %= 4;   // 3
+    print_i32(x);
+    return 0;
+}
+```
+
+<Session lines={["3"]} />
+
+`x++` and `x--` do not exist; write `x += 1`. `a = b = 3` is refused, because the
+right-hand assignment is not an expression:
+
+<Session
+  lines={[
+    "$ ralt check chain.tp",
+    "chain.tp:2:48: error: expected ';' to end the statement, got '='",
+    "  [E0101 unexpected-token] see spec/grammar.ebnf for what is legal here",
+  ]}
+/>
+
+The target of an assignment is a local or a field path (`p.x = 1;` works,
+`a[i] = 1;` works). A `const` binding is refused at the assignment with E0203;
+see [E0203](/docs/diagnostics/E0203).
+
+## `?` — propagation, not unwrapping
+
+`?` is a postfix operator on `opt<T>` and `result<T, E>`, and it is only legal in
+a function whose return type matches.
+
+| expression | in a function returning | result |
+|---|---|---|
+| `o?` where `o: opt<T>` | `opt<T>` | `T`, or an early `none` |
+| `r?` where `r: result<T, E>` | `result<T, E>` | `T`, or an early `err(e)` |
+
+```tripon
+use tier core;
+
+fn f(x: i32) -> opt<i32> {
+    if x > 0 { return some(x); }
+    return none;
+}
+
+fn g(x: i32) -> opt<i32> {
+    let v = f(x)?;
+    return some(v + 1);
+}
+
+fn main() -> i32 {
+    match g(-1) {
+        some(v) => { print_i32(v); }
+        none => { print_str("none"); }
+    }
+    return 0;
+}
+```
+
+<Session lines={["none"]} />
+
+`?` is not a cast and not a default. It is a return from the current function,
+with the error already in the right shape. Using it in a function with an
+incompatible return type is E0205, and the message names both sides:
+
+<Session
+  lines={[
+    "$ ralt check spread.tp",
+    "spread.tp:5:28: error: '?' inside a fn returning i32 cannot propagate; match it or return result<i32, str>",
+    "  [E0205 unhandled-result] Result value ignored; spread with ? or match",
+  ]}
+/>
+
+## Operators that are not there
+
+| written | what happens |
+|---|---|
+| `2 ** 10` | E0101: `expected an expression, got '*'` |
+| `6 & 3` | E0101, with `'&' address-of arrives with borrows (P1.1+)` |
+| `1 << 3` | E0101; there are no shift operators |
+| `a \| b`, `a ^ b`, `~a` | E0101; there are no bitwise operators |
+| `1.0 % 2.0` | E0202: `'%' needs integer operands` |
+| `"a" + "b"` | E0202: `str and str do not share an operator` |
+| `"a" < "b"` | E0202: `'< > <= >=' need numeric operands` |
+| `!5` | E0202: `'!' requires bool` |
+
+If an operation is missing, the language's answer is a written loop or a
+function, not an operator with surprising semantics. The exceptions are the ones
+the spec has not landed yet, and they are listed on the
+[reference index](/docs/reference).
