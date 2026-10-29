@@ -1,0 +1,68 @@
+export const metadata = {
+  title: "Modules",
+  description:
+    "Each Tripon file is a module: pub exports a function, use \"path.tp\" as alias imports one, and alias::fn(...) calls it. Private names, missing files and duplicate aliases have their own codes.",
+  alternates: { canonical: "/docs/language/modules" },
+};
+
+# Modules
+
+Each `.tp` file is a module. A module exports what it marks `pub`; another file
+imports it with a path and calls qualified names:
+
+```tripon
+// lib/math.tp
+use tier core;
+
+pub fn add(a: i32, b: i32) -> i32 { return a + b; }
+
+fn helper(x: i32) -> i32 { return x * 2; }   // private
+```
+
+```tripon
+// main.tp
+use tier core;
+use "lib/math.tp" as math;
+
+fn main() -> i32 {
+    print_i32(math::add(2, 3));
+    return 0;
+}
+```
+
+`use "…" as alias;` resolves the path relative to the importing file. The
+module is parsed and folded into the same translation unit, exactly like a
+dependency from `ralt.yaml`; there is no link step.
+
+## Name mangling
+
+Every function in an imported module is renamed to `alias__name` inside the
+translation unit, and calls inside the module are rewritten to match. Two
+modules can therefore both define `add` without colliding, and a module can
+keep private helpers without exporting them.
+
+Only `pub` functions are reachable through the alias. `math::helper(...)` from
+another file is **E0702 not-exported** — add `pub` in the module or call a
+public function.
+
+## Import diagnostics
+
+| situation | code |
+|---|---|
+| the name exists but is not `pub` | `E0702 not-exported` |
+| the path cannot be read | `E0703 module-not-found` |
+| two imports share an alias | `E0704 duplicate-module-alias` |
+| a cycle (reserved) | `E0701 circular-import` |
+
+## What is not here yet
+
+Types are not namespaced: `pub struct` and `pub enum` still land in the single
+file-scope type namespace, so qualified type names (`math::Point`) and selective
+imports (`use math::add;`) are the next slice. Imports are one level deep — an
+imported module cannot itself import another module yet.
+
+## Formatting
+
+`ralt fmt` is parse-only: it round-trips `pub` and `use "…" as …;` and does not
+inline imported modules into the file you are formatting. That also means a
+library with no `main` formats cleanly.

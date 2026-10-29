@@ -40,6 +40,7 @@ export const docsNav: NavGroup[] = [
       { href: "/docs/language/data", label: "Structs, enums, match" },
       { href: "/docs/language/errors", label: "opt, result and ?" },
       { href: "/docs/language/arrays", label: "Arrays and strings" },
+      { href: "/docs/language/modules", label: "Modules" },
       { href: "/docs/language/tiers", label: "Tiers" },
       { href: "/docs/language/traps", label: "Traps and no-UB" },
     ],

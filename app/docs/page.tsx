@@ -22,6 +22,7 @@ const blurbs: Record<string, string> = {
   "/docs/language/data": "Structs, enums with payloads, and exhaustive match.",
   "/docs/language/errors": "opt<T>, result<T, E>, and ? propagation in place of null.",
   "/docs/language/arrays": "Fixed arrays, bounds checks, and what a str really is.",
+  "/docs/language/modules": "pub exports, use \"file.tp\" as alias, alias::fn calls.",
   "/docs/language/tiers": "The ceiling you declare, and what each tier carries.",
   "/docs/language/traps": "The no-UB contract, code by code: E9001 to E9004.",
   "/docs/toolchain": "Every subcommand of ralt, every flag, and what it writes.",

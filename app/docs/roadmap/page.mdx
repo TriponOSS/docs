@@ -112,6 +112,9 @@ Landed:
 
 - a content-addressed lockfile — `ralt lock` writes one FNV-1a hash per dep
   tree into `ralt.lock`, deterministic and content-tracking
+- a phase-1 module system — `pub` exports, `use "file.tp" as alias;` and
+  `alias::fn(...)` qualified calls (E0702/E0703/E0704 for the error cases);
+  qualified types and selective imports are next
 
 Still ideation:
 
