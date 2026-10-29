@@ -1,18 +1,18 @@
 export const metadata = {
   title: "Builtins",
   description:
-    "The Tripon prelude: print_i32, print_i64, print_f64, print_str and len, plus some, none, ok, err and cast<T> — signatures, exact output formats and refusals.",
+    "The Tripon prelude: print_i32, print_i64, print_f64, print_str, len, putchar and getenv, plus some, none, ok, err and cast<T> — signatures, exact output formats and refusals.",
   alternates: { canonical: "/docs/reference/builtins" },
 };
 
 # Builtins
 
-The prelude is small on purpose. Five functions plus four constructors and one
+The prelude is small on purpose. Seven functions plus four constructors and one
 operator are available with no import, at tier `core` and above. There is no
 `std` namespace to search and no trait to implement: if a name is not on this
 page, it is not built in.
 
-The five functions are declared in one table in `ralt/src/typecheck.c`:
+The seven functions are declared in one table in `ralt/src/typecheck.c`:
 
 ```c
 {"print_i32", TY_VOID, TY_I32},
@@ -20,6 +20,8 @@ The five functions are declared in one table in `ralt/src/typecheck.c`:
 {"print_f64", TY_VOID, TY_F64},
 {"print_str", TY_VOID, TY_STR},
 {"len",       TY_I32, TY_STR},
+{"putchar",   TY_I32, TY_I32},
+{"getenv",    TY_STR, TY_STR},
 ```
 
 `len` is the one with a second rule: on an array the checker accepts it
@@ -172,6 +174,38 @@ The return type is always `i32`, even on a 64-bit target. An array's length is
 part of its type, so `len` is as constant as `[N]`; a `while i < len(a)` loop is
 comparing two `i32`s, with no cast on either side.
 
+## `putchar(c: i32) -> i32`
+
+Writes one byte, `cast<u8>(c)`, to standard output with no newline appended, and
+returns it. This is the raw-output primitive the prelude otherwise lacks:
+
+```tripon
+putchar(65);
+putchar(10);
+```
+
+<Session lines={["A"]} />
+
+Use it when `print_str` is the wrong shape — building output byte by byte, or
+emitting progress without line breaks. Like the other builtins it takes exactly
+one `i32`; there is no implicit conversion from `u8` or `str`.
+
+## `getenv(name: str) -> str`
+
+Reads an environment variable. A missing variable yields the empty string, never
+a null pointer:
+
+```tripon
+let home = getenv("HOME");
+print_str(home);
+```
+
+<Session lines={["/home/you"]} />
+
+The result is an ordinary `str`, so `len` and indexing work and `==` compares
+contents. There is no separate `opt<str>` form: test `len(getenv(x)) == 0` when
+absence matters.
+
 ## Constructors: `some`, `none`, `ok`, `err`
 
 These four are not in the builtin table — the parser and checker special-case
@@ -247,8 +281,8 @@ concatenation, no `sqrt`, no `min`, no parsing and no map. `str` supports `==`,
 `!=` and `len`; nothing else. Arrays support indexing and `len`; nothing else.
 
 That is not an oversight to work around with a cast. It is the size of the
-surface at tier `core`, and anything larger is meant to arrive as a library at a
-higher tier, or through [`extern "C"`](/docs/reference/extern).
+surface at tier `core`, and anything larger arrives as a library at a higher
+tier — the standard library under `src/stdlib/` is exactly that.
 
 ## Every builtin refusal, in one place
 
@@ -258,8 +292,10 @@ higher tier, or through [`extern "C"`](/docs/reference/extern).
 | `print_f64(x: i32)` | `builtin 'print_f64' expects f64, got i32` |
 | `len(x: i32)` | `len() takes an array or str, got i32` |
 | `print_str(x: i32)` | `builtin 'print_str' expects str, got i32` |
+| `putchar()` | `builtin 'putchar' takes 1 argument(s), got 0` |
+| `getenv(x: i32)` | `builtin 'getenv' expects str, got i32` |
 | `print_i32()` | `builtin 'print_i32' takes 1 argument(s), got 0` |
 | `print_i32(a, b)` | `builtin 'print_i32' takes 1 argument(s), got 2` |
 
-All six carry `E0202 type-mismatch` and the same hint: types must match
+All of them carry `E0202 type-mismatch` and the same hint: types must match
 exactly, and `cast<T>(x)` is the way to make them.

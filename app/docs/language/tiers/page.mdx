@@ -13,7 +13,7 @@ additive tiers, and every file declares the ceiling it needs.
 
 | tier | name | gets | target |
 |---|---|---|---|
-| 0 | `kernel` | ints, bools, byte, structs, enums, fn, fixed arrays, extern C, `const` | firmware, bootloaders, bare metal |
+| 0 | `kernel` | ints, bools, byte, structs, enums, fn, fixed arrays, `const` | firmware, bootloaders, bare metal |
 | 1 | `core` | + arena allocator, slices, `result` / `opt` / `?`, `match`, modules | microcontrollers, tiny CLIs |
 | 2 | `std` | + ref-owned pointers, `String` / `Vec` / `Map`, closures, generics | normal applications |
 | 3 | `full` | + coroutines and async, the self-host runtime | everything else |
@@ -38,8 +38,8 @@ fn main() -> i32 {
 ```
 
 <Session
-  title="examples/tiers.tp — no allocation anywhere in it"
-  lines={["$ ralt run examples/tiers.tp", "12340"]}
+  title="tiers.tp — no allocation anywhere in it"
+  lines={["$ ralt run tiers.tp", "12340"]}
 />
 
 The declaration is a ceiling, not a floor: a `core` file may use everything `kernel`

@@ -26,7 +26,7 @@ The first phase shipped nothing that runs, and it is the reason everything after
 be checked.
 
 - `spec/grammar.ebnf` — one EBNF file, plain features only
-- `spec/tripon.md` — identity, the tier table, and the type contract T1–T9
+- `spec/grammar.ebnf` — the frozen grammar
 - `spec/errors.csv` — the diagnostic table, frozen before the compiler existed
 - acceptance: the spec round-trips ten sample `.tp` files
 
@@ -44,7 +44,7 @@ list of sources.
 - **P1.1** structs, enums with payloads, exhaustive `match`, `cast<T>`; `opt`,
   `result`, `?` propagation and no-`null`
 - **P1.2** fixed arrays and `str` indexing with `E9002`, and `*i8` for the
-  `extern "C"` fence
+  raw-pointer fence
 - acceptance: hello world, a linked list and a sum-type match program all compile and
   run, on `gcc` and on `clang`
 
@@ -57,12 +57,12 @@ possible one at a time.
 The phase that turned the compiler into an interface.
 
 - `ralt fmt` — canonical layout, so a diff is a reviewable artifact
-- `ralt doc` — signatures in text or JSON, with `extern` marked
+- `ralt doc` — signatures in text or JSON
 - `ralt lsp` — an editor and agent server over stdio, sharing the compiler's passes
 - `ralt deps` and `ralt install` — a manifest, a cache, no link ceremony
 - `ralt tokens` — the token stream, frozen as an oracle for the coming lexer port
 - acceptance: the edit loop runs end to end — error JSON in, a correct fix out, green
-  check — and the suite is 42 checks with determinism byte-identical
+  check — and the suite is 59 checks with determinism byte-identical
 
 ## P3 — self-host
 
@@ -110,7 +110,8 @@ Recorded as ideation rather than as a phase, because neither is designed yet:
 
 ## Not decided
 
-`spec/tripon.md` lists what is deliberately open rather than quietly assumed: closure
+`spec/grammar.ebnf` reserves what is deliberately open rather than quietly
+assumed: closure
 capture rules, the async slot, how complete the borrow checker becomes, and the generics
 ABI. Each is a question with more than one good answer, and each is written down as
 unresolved so that an implementation cannot settle it by accident.

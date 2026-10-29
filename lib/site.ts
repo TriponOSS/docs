@@ -7,7 +7,7 @@ export const site = {
   repo: "https://github.com/TriponOSS/tripon",
   org: "https://github.com/TriponOSS",
   license: "MIT",
-  tagline: "A compiled language for low-resource systems, with a compiler interface built for agents.",
+  tagline: "A compiled language for low-resource systems, with no FFI, no null and no undefined behavior.",
   description:
     "Tripon is a statically typed language that compiles to C99 and x86-64. Four tiers decide how much runtime you can afford. No null, no undefined behavior, no implicit conversions, and every diagnostic carries a stable code, an exact span and a fix hint.",
 } as const;
@@ -19,8 +19,6 @@ export const topNav: NavItem[] = [
   { href: "/docs/language", label: "language" },
   { href: "/docs/toolchain", label: "toolchain" },
   { href: "/docs/diagnostics", label: "diagnostics" },
-  { href: "/docs/agents", label: "agents" },
-  { href: "/docs/spec", label: "spec" },
 ];
 
 export type NavGroup = { label: string; items: NavItem[] };
@@ -51,7 +49,6 @@ export const docsNav: NavGroup[] = [
     items: [
       { href: "/docs/toolchain", label: "ralt reference" },
       { href: "/docs/diagnostics", label: "Diagnostic codes" },
-      { href: "/docs/agents", label: "The agent interface" },
     ],
   },
   {
@@ -62,13 +59,11 @@ export const docsNav: NavGroup[] = [
       { href: "/docs/reference/operators", label: "Operators" },
       { href: "/docs/reference/statements", label: "Statements" },
       { href: "/docs/reference/literals", label: "Literals and names" },
-      { href: "/docs/reference/extern", label: "extern \"C\"" },
     ],
   },
   {
     label: "more",
     items: [
-      { href: "/docs/spec", label: "The spec" },
       { href: "/docs/self-hosting", label: "Self-hosting" },
       { href: "/docs/roadmap", label: "Roadmap" },
     ],
@@ -91,7 +86,6 @@ export const benchmarks = [
 /** The source tree, verbatim, for the file-tree piece. */
 export const repoTTree = `spec/
   grammar.ebnf
-  tripon.md
   errors.csv
 ralt/
   src/
@@ -109,20 +103,15 @@ ralt/
     diag.c
     common.h
     main.c
-selfhost/
-  lexer.tp
-  parser.tp
-  check.tp
-examples/
-  hello.tp
-  fib.tp
-  logic.tp
-  math.tp
-  opt_some.tp
-  report.tp
-  result_ok.tp
-  strings.tp
-  tiers.tp
+src/
+  main.tp
+  selfhost/
+    lexer.tp
+    parser.tp
+    check.tp
+  stdlib/
+    kernel/
+    core/
 tests/
   cases/
   expected/
@@ -155,7 +144,7 @@ export type Sample = {
 export const fibSample: Sample = {
   id: "fib",
   title: "fib.tp",
-  path: "examples/fib.tp",
+  path: "fib.tp",
   source: `use tier core;
 
 fn fib(n: i32) -> i32 {
@@ -195,7 +184,7 @@ fn main() -> i32 {
 export const resultSample: Sample = {
   id: "result",
   title: "result_ok.tp",
-  path: "examples/result_ok.tp",
+  path: "tests/cases/result_ok.tp",
   source: `use tier core;
 
 fn parse(s: str) -> result<i32, str> {

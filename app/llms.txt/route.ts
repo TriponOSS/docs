@@ -127,10 +127,10 @@ ${diagnosticsSection()}
 
 ## Source
 
-- [tripon](https://github.com/TriponOSS/tripon): compiler, spec, examples, tests
+- [tripon](https://github.com/TriponOSS/tripon): compiler, spec, src, tests
 - [docs](https://github.com/TriponOSS/docs): this site
-- The spec is three files: \`spec/grammar.ebnf\`, \`spec/tripon.md\`,
-  \`spec/errors.csv\`. The compiler is held to them, not the other way around.
+- The spec is two files: \`spec/grammar.ebnf\` and \`spec/errors.csv\`. The
+  compiler is held to them, not the other way around.
 `;
 
 export function GET() {

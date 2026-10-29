@@ -68,8 +68,8 @@ fn main() -> i32 {
 ```
 
 <Session
-  title="examples/opt_some.tp"
-  lines={["$ ralt run examples/opt_some.tp", "6", "none", "none", "none", "9"]}
+  title="tests/cases/opt_some.tp"
+  lines={["$ ralt run tests/cases/opt_some.tp", "6", "none", "none", "none", "9"]}
 />
 
 Note the two bindings near the end: `let d: opt<i32> = none;` needs the type, because
@@ -132,8 +132,8 @@ fn main() -> i32 {
 ```
 
 <Session
-  title="examples/result_ok.tp"
-  lines={["$ ralt run examples/result_ok.tp", "84", "empty input", "-1"]}
+  title="tests/cases/result_ok.tp"
+  lines={["$ ralt run tests/cases/result_ok.tp", "84", "empty input", "-1"]}
 />
 
 `run` spreads twice; the first `err` to appear leaves the function immediately with

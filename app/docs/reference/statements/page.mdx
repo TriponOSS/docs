@@ -20,7 +20,7 @@ are nine forms, and the list is closed.
 | return | `return expr;` or `return;` |
 | expression | `call(args);` |
 | block | `{ ... }` |
-| declaration | `fn`, `struct`, `enum`, `use tier`, `extern` |
+| declaration | `fn`, `struct`, `enum`, `use tier`, `const` |
 
 Every statement ends in `;` except a block and a declaration. There is no
 implicit return: the last expression of a body is not its value.
@@ -313,7 +313,7 @@ function.
 | struct | `struct Name { field: T; ... }` |
 | enum | `enum Name { A, B(i32), C(i32, i32) }` |
 | tier | `use tier kernel;` (or `core`, `std`, `full`) |
-| C function | `extern "C" { fn name(p: T) -> R; }` |
+| imported function | a `fn` from a dependency, resolved by name |
 
 Functions may be called before they are defined in the file; there are no
 forward declarations. There is no overloading: one name, one signature.

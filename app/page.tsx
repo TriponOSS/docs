@@ -54,7 +54,7 @@ const tiers = [
   {
     n: "0",
     name: "kernel",
-    gets: "ints, bools, structs, enums, fn, fixed arrays, extern C, const",
+    gets: "ints, bools, structs, enums, fn, fixed arrays, const",
     target: "firmware, bootloaders, bare metal",
   },
   {
@@ -94,19 +94,9 @@ const readOn = [
     line: "The frozen table: code, severity, name and the fix hint.",
   },
   {
-    href: "/docs/agents",
-    title: "The agent interface",
-    line: "The JSON contract, the spans, and why the codes never move.",
-  },
-  {
     href: "/docs/language/tiers",
     title: "The tier system",
     line: "What each tier carries, and what E0301 refuses.",
-  },
-  {
-    href: "/docs/spec",
-    title: "The specification",
-    line: "grammar.ebnf, the type contract, and errors.csv.",
   },
 ];
 
@@ -126,7 +116,7 @@ export default function Home() {
         <div className="hero-copy">
           <h1>
             A compiled language for low-resource systems.
-            <span className="quiet">Built to be read by agents.</span>
+            <span className="quiet">No FFI. No null. No undefined behavior.</span>
           </h1>
 
           <p className="hero-lede">
@@ -281,16 +271,16 @@ export default function Home() {
         <h2>A language you already know the shape of</h2>
         <p className="band-lede">
           Braces, semicolons, <code>let</code> and <code>fn</code>: there is nothing to
-          relearn, and nothing underneath that an agent could reasonably read two ways.
+          relearn, and nothing underneath that could reasonably be read two ways.
         </p>
 
         <div className="band-body split" data-cols="two">
-          <Code code={fibSample.source} title="examples/fib.tp" />
+          <Code code={fibSample.source} title="fib.tp" />
 
           <div className="stack">
             <Session
-              title="ralt run examples/fib.tp"
-              lines={[`$ ralt run examples/fib.tp`, fibSample.output]}
+              title="ralt run fib.tp"
+              lines={[`$ ralt run fib.tp`, fibSample.output]}
             />
             <p className="bench-note">
               Data lives by value, variants carry payloads, and <code>match</code> is
@@ -442,15 +432,15 @@ export default function Home() {
         <h2>One binary, six directories</h2>
         <p className="band-lede">
           <code>spec/</code> is the source of truth, not the C code. Each pass is one C
-          file with no dependencies, and <code>selfhost/</code> holds the same passes
-          written in Tripon.
+          file with no dependencies, and <code>src/selfhost/</code> holds the same
+          passes written in Tripon.
         </p>
 
         <div className="band-body split" data-cols="two">
           <Art
             piece="file-tree"
             options={{ root: "tripon", entries: repoTTree }}
-            label="The Tripon repository tree: spec, ralt, selfhost, examples, tests, bench."
+            label="The Tripon repository tree: spec, ralt, src, tests, bench."
             caption={
               <>
                 <span>
@@ -465,7 +455,7 @@ export default function Home() {
               title="the contract, tested"
               lines={[
                 "$ make test",
-                "42 checks passing, gcc and clang",
+                "59 checks passing, gcc and clang",
                 "$ sh tests/determinism.sh",
                 "byte-identical on every build",
               ]}

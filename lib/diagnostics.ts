@@ -46,7 +46,7 @@ export const bands: Band[] = [
         code: "E0002",
         severity: "error",
         name: "invalid-character",
-        hint: "ASCII identifiers only; table in spec/tripon.md",
+        hint: "ASCII identifiers only; table in spec/grammar.ebnf",
       },
       {
         code: "E0003",
@@ -78,7 +78,7 @@ export const bands: Band[] = [
   {
     id: "types",
     label: "Types",
-    blurb: "The type contract in spec/tripon.md, sections T1 to T9, enforced.",
+    blurb: "The type contract, enforced by the checker.",
     diagnostics: [
       {
         code: "E0201",

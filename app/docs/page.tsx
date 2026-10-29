@@ -31,9 +31,6 @@ const blurbs: Record<string, string> = {
   "/docs/reference/operators": "Precedence, operand types, and which operators exist at all.",
   "/docs/reference/statements": "The nine statement forms, with the diagnostic for each edge.",
   "/docs/reference/literals": "Number forms, six escapes, identifiers, keywords and comments.",
-  "/docs/reference/extern": "The one C escape hatch: mapping, prototypes, and the cost.",
-  "/docs/agents": "The JSON contract, the spans, and why codes never move.",
-  "/docs/spec": "grammar.ebnf, the type contract, and errors.csv.",
   "/docs/self-hosting": "The compiler ports written in the language they compile.",
   "/docs/roadmap": "P0 through P4, what shipped, and what is next.",
 };
@@ -79,37 +76,36 @@ export default function DocsIndex() {
       <p>
         A documentation site drifts from its compiler, so the parts that could drift
         are machine-checked instead: the diagnostic table is generated from{" "}
-        <code>spec/errors.csv</code>, and every sample under <code>examples/</code> is
-        run by the test suite.
+        <code>spec/errors.csv</code>, and every sample under <code>tests/cases/</code>{" "}
+        is run by the test suite.
       </p>
 
       <Session
         title="the contract, tested"
         lines={[
           "$ make test",
-          "42 checks passing, gcc and clang",
+          "59 checks passing, gcc and clang",
           "$ sh tests/determinism.sh",
           "byte-identical on every build",
         ]}
       />
 
       <p>
-        The three files in <code>spec/</code> are the source of truth, not the C code:{" "}
-        <Link href="/docs/spec">the specification</Link> rewrites them, and{" "}
+        <code>spec/grammar.ebnf</code> and <code>spec/errors.csv</code> are the source
+        of truth, not the C code:{" "}
         <Link href="/docs/diagnostics">the diagnostic table</Link> is the same table the
         compiler emits and the goldens check. Error codes are append-only — never
         renumbered, never reused — which is what lets a fix written against{" "}
         <code>E0202</code> still mean the same thing ten releases later.
       </p>
 
-      <h2>If you are an agent</h2>
+      <h2>Reading the diagnostics</h2>
 
       <p>
-        Start with <Link href="/docs/agents">the agent interface</Link>. The short
-        version: <code>ralt check --json</code> answers with one array, one object per
+        <code>ralt check --json</code> answers with one array, one object per
         diagnostic, each carrying a code, an exact <code>{"{file,line,col,len}"}</code>{" "}
         span and a fix hint — and every command in the toolchain is deterministic, so
-        the same input always produces the same bytes. If you want the whole contract
+        the same input always produces the same bytes. If you want the whole table
         as one fetch, <Link href="/llms.txt">/llms.txt</Link> is the playbook.
       </p>
     </>

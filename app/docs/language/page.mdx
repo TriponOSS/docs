@@ -85,8 +85,8 @@ fn main() -> i32 {
 ```
 
 <Session
-  title="examples/logic.tp"
-  lines={["$ ralt run examples/logic.tp", "B"]}
+  title="logic.tp"
+  lines={["$ ralt run logic.tp", "B"]}
 />
 
 ## Expressions and precedence
@@ -123,8 +123,8 @@ fn main() -> i32 {
 ```
 
 <Session
-  title="examples/math.tp"
-  lines={["$ ralt run examples/math.tp", "13", "12.56", "4", "1"]}
+  title="math.tp"
+  lines={["$ ralt run math.tp", "13", "12.56", "4", "1"]}
 />
 
 `print_f64` prints to two decimal places. Division and modulo by zero do not produce
@@ -152,8 +152,8 @@ an undefined result at this line — they trap, with a code and a line number. S
 
 ## Declarations
 
-A file is a sequence of declarations: the tier declaration, `extern "C"` blocks,
-`fn`, `struct`, `enum`, and `const`. The spec reserves `use <module>` and `pub`
+A file is a sequence of declarations: the tier declaration, `fn`, `struct`,
+`enum`, and `const`. The spec reserves `use <module>` and `pub`
 visibility for module-level code; the bootstrap compiler records the tier
 declaration today and the module model lands with the rest of tier 1. Until then,
 one file is one translation unit, and a dependency is another file compiled into it.

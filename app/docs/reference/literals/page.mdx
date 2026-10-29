@@ -63,7 +63,7 @@ but a digit may not. Anything outside ASCII is E0002, one diagnostic per byte:
   lines={[
     "$ ralt check e0002.tp",
     "e0002.tp:4:12: error: unexpected character in source",
-    "  [E0002 invalid-character] ASCII identifiers only; table in spec/tripon.md",
+    "  [E0002 invalid-character] ASCII identifiers only; table in spec/grammar.ebnf",
   ]}
 />
 
@@ -79,7 +79,7 @@ These eighteen words are reserved and cannot be bindings:
 | `fn` | `let` | `const` | `return` |
 | `if` | `else` | `while` | `match` |
 | `struct` | `enum` | `use` | `tier` |
-| `extern` | `true` | `false` | `cast` |
+| `cast` | `true` | `false` | `pub` |
 | `mut` | `pub` | | |
 
 `mut` and `pub` are reserved before they are usable: both are refused by the
@@ -225,7 +225,7 @@ Anything else after a backslash is a lexer error, not a literal backslash:
   lines={[
     "$ ralt check escape.tp",
     "escape.tp:2:30: error: unknown escape in string",
-    "  [E0002 invalid-character] ASCII identifiers only; table in spec/tripon.md",
+    "  [E0002 invalid-character] ASCII identifiers only; table in spec/grammar.ebnf",
   ]}
 />
 
@@ -246,7 +246,7 @@ There are no single-quoted strings, no raw strings and no character literals. A
   lines={[
     "$ ralt check single.tp",
     "single.tp:2:30: error: unexpected character in source",
-    "  [E0002 invalid-character] ASCII identifiers only; table in spec/tripon.md",
+    "  [E0002 invalid-character] ASCII identifiers only; table in spec/grammar.ebnf",
   ]}
 />
 

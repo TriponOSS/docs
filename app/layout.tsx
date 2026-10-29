@@ -42,7 +42,6 @@ export const metadata: Metadata = {
     "firmware",
     "microcontrollers",
     "compiler",
-    "AI agents",
     "C99",
     "x86-64",
     "no undefined behavior",

@@ -100,8 +100,8 @@ fn main() -> i32 {
 ```
 
 <Session
-  title="examples/strings.tp"
-  lines={["$ ralt run examples/strings.tp", "6", "exact match", 'tab:\tand "quotes"']}
+  title="tests/cases/strings.tp"
+  lines={["$ ralt run tests/cases/strings.tp", "6", "exact match", 'tab:\tand "quotes"']}
 />
 
 `==` on two `str` values compares contents, not addresses — an accident of C that
@@ -135,7 +135,7 @@ you, and widening it to `i32` is `cast<i32>(s[i])`, written out.
   <p>
     The grammar reserves <code>[]T</code> for a length-carrying slice and{" "}
     <code>&amp;T</code> for a read-only borrow, both at tier <code>core</code> and
-    above, and <code>spec/tripon.md</code> specifies them. The bootstrap compiler does
+    above, and <code>spec/grammar.ebnf</code> specifies them. The bootstrap compiler does
     not accept either form yet — <code>fn total(xs: []i32)</code> is a parse error, not
     a silently-different type. Until they land, an array is passed by copy and a{" "}
     <code>str</code> is the one slice-like type in the language.

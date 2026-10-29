@@ -1,27 +1,23 @@
 export const metadata = {
   title: "Hello, Tripon",
   description:
-    "The first Tripon program, line by line: the tier declaration, the extern island, the entry point, and what the compiler emits for each part.",
+    "The first Tripon program, line by line: the tier declaration, the entry point, and what the compiler emits for each part.",
   alternates: { canonical: "/docs/hello-tripon" },
 };
 
 # Hello, Tripon
 
 Every language has a program that proves the compiler works end to end. This is
-Tripon's — `examples/hello.tp`, a file the test suite runs on every commit:
+Tripon's — `tests/cases/hello.tp`, a file the test suite runs on every commit:
 
 ```tripon
-// examples/hello.tp - the canonical smoke test
-// run: ralt run examples/hello.tp
+// tests/cases/hello.tp - the canonical smoke test
+// run: ralt run tests/cases/hello.tp
 
 use tier core;
 
-extern "C" {
-    fn puts(p: str) -> i32;
-}
-
 fn main() -> i32 {
-    puts("hello from tripon");
+    print_str("hello from tripon");
     return 0;
 }
 ```
@@ -37,16 +33,16 @@ can never change what the program means.
 the compiler which features the file may reach for. A file that declares nothing
 defaults to `core`. [The tier system](/docs/language/tiers) has the full table.
 
-**`extern "C" { … }`** is a fenced island. Functions declared inside it are raw C
-symbols taking raw pointers, and the fence is the only place a pointer type may
-appear: everything outside it is pointer-free and memory-safe. Here `puts` is
-declared as taking a `str` and returning `i32`, which is exactly how it is called.
+**`print_str(…)`** is a prelude builtin, available with no import at tier `core`
+and above. There is no FFI in Tripon: no `extern` block, no raw pointers, no C
+symbols. The prelude is the whole set of things a program can reach without
+declaring them itself.
 
 **`fn main() -> i32`** is the entry point. The return type is not decoration — it
 becomes the process exit status, which is why `main` returns `0` at the end. A
 file with no `main` is `E0501`; a function that returns nothing is written `-> ()`.
 
-**`puts("hello from tripon");`** passes a string literal. A `str` is a UTF-8 slice;
+**`print_str("hello from tripon");`** passes a string literal. A `str` is a UTF-8 slice;
 the literal lives in the binary's read-only data, so this call allocates nothing.
 Semicolons are mandatory, as are braces around every block. Nothing in Tripon is
 optional in a way that could be read two ways.
@@ -75,9 +71,9 @@ fn fib(n: i32) -> i32 {
 ```
 
 <Session
-  title="examples/fib.tp, called in a loop from main"
+  title="fib.tp, called in a loop from main"
   lines={[
-    "$ ralt run examples/fib.tp",
+    "$ ralt run fib.tp",
     "0",
     "1",
     "1",
@@ -103,12 +99,10 @@ is what makes them usable as oracles:
 <Session
   title="ralt tree — the parse, frozen since P3.1"
   lines={[
-    "$ ralt tree examples/hello.tp",
+    "$ ralt tree tests/cases/hello.tp",
     "TIER core",
-    "EXTFN puts ret=i32",
-    "  PARAM p str",
     "FN main ret=i32",
-    "  EXPR (CALL puts STR)",
+    "  EXPR (CALL print_str STR)",
     "  RETURN INT 0",
   ]}
 />
@@ -116,23 +110,20 @@ is what makes them usable as oracles:
 <Session
   title="ralt tokens — the lexer's token stream, with line and column"
   lines={[
-    "$ ralt tokens examples/hello.tp",
-    "TK_USE 4 1",
-    "TK_TIER 4 5",
-    "TK_IDENT 4 10 core",
-    "TK_SEMI 4 14",
-    "TK_EXTERN 6 1",
-    "TK_STR 6 8 C",
-    "TK_BRACE_L 6 12",
-    "TK_FN 7 5",
-    "TK_IDENT 7 8 puts",
+    "$ ralt tokens tests/cases/hello.tp",
+    "TK_USE 1 1",
+    "TK_TIER 1 5",
+    "TK_IDENT 1 10 core",
+    "TK_SEMI 1 14",
+    "TK_FN 3 1",
+    "TK_IDENT 3 4 main",
     "…",
   ]}
 />
 
 <Session
   title="ralt check --json — the diagnostic contract"
-  lines={["$ ralt check examples/hello.tp --json", "[]"]}
+  lines={["$ ralt check tests/cases/hello.tp --json", "[]"]}
 />
 
 `ralt tokens` and `ralt tree` exist so the self-hosted lexer and parser can be held

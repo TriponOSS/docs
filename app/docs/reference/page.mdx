@@ -28,7 +28,6 @@ quietly documenting the spec.
 | [Operators](/docs/reference/operators) | arithmetic, comparison, logic, assignment, `?`, and the precedence table |
 | [Statements](/docs/reference/statements) | `let`, `const`, assignment, `if`, `while`, `match`, `return`, declarations |
 | [Literals and names](/docs/reference/literals) | numbers, strings, escapes, identifiers, keywords, comments |
-| [`extern "C"`](/docs/reference/extern) | the one escape hatch, its type mapping, and what it costs |
 | [Diagnostic codes](/docs/diagnostics) | every code, each with a page of its own |
 
 ## What the bootstrap accepts today
@@ -66,7 +65,7 @@ A name in expression position resolves to exactly one of three things:
 1. a binding introduced by `let` or `const`, or a parameter of the enclosing
    function;
 2. a builtin from the prelude, available with no import;
-3. a function declared in an `extern "C"` block and linked from the platform.
+3. a function declared in another file folded in as a dependency.
 
 There is no fourth way: there is no implicit libc prelude, no ambient module, and
 no automatic import. If a name is not one of those three, it is E0201, and the

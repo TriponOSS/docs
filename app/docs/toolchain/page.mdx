@@ -43,7 +43,7 @@ Compiles a program. The default pipeline emits C99, hands it to your C compiler 
 links the result:
 
 ```sh
-ralt build examples/hello.tp              # writes build/a.out
+ralt build tests/cases/hello.tp              # writes build/a.out
 ralt build hello.tp -o hello              # names the artifact
 ralt build hello.tp -O fast               # turns the C optimizer on
 ralt build wrap.tp -fast                  # + - * wrap instead of trapping
@@ -62,7 +62,7 @@ ralt build hello.tp --backend native      # x86-64 assembly, no C step
 Builds and executes in one step, passing any trailing arguments to the program and
 streaming its stdio. This is the loop you use while writing:
 
-<Session lines={["$ ralt run examples/hello.tp", "hello from tripon"]} />
+<Session lines={["$ ralt run tests/cases/hello.tp", "hello from tripon"]} />
 
 ## `check`
 
@@ -71,21 +71,21 @@ milliseconds on the corpus — and it is the command the whole agent interface i
 around:
 
 ```sh
-ralt check examples/fib.tp            # human format
-ralt check examples/fib.tp --json     # the diagnostic contract
+ralt check fib.tp            # human format
+ralt check fib.tp --json     # the diagnostic contract
 ```
 
 The human format puts the span on the first line and the code with its hint on the
 second, so the same information is readable by a person and parseable by a program.
 `--json` emits one array, in lex → parse → typecheck order, with nothing hidden behind
-the first error. See [the agent interface](/docs/agents) for the field list.
+the first error. See [diagnostic codes](/docs/diagnostics) for the field list.
 
 ## `emit`
 
 Stops after code generation, so you can read, diff or ship the C:
 
 ```sh
-ralt emit --c examples/hello.tp -o hello.c
+ralt emit --c tests/cases/hello.tp -o hello.c
 ```
 
 The output is ordinary C99 with `tp_`-prefixed names, one translation unit, and the
@@ -148,24 +148,22 @@ Prints the signature of every function, in text or as JSON:
 
 <Session
   lines={[
-    "$ ralt doc examples/hello.tp",
-    "fn puts(p: str) -> i32",
+    "$ ralt doc tests/cases/hello.tp",
     "fn main() -> i32",
   ]}
 />
 
 <Session
   lines={[
-    "$ ralt doc examples/hello.tp --json",
+    "$ ralt doc tests/cases/hello.tp --json",
     "[",
-    "  { \"symbol\": \"puts\", \"signature\": \"extern \\\"C\\\" fn puts(p: str) -> i32\", \"extern\": true, \"file\": \"hello.tp\", \"line\": 7 },",
-    "  { \"symbol\": \"main\", \"signature\": \"fn main() -> i32\", \"extern\": false, \"file\": \"hello.tp\", \"line\": 10 }",
+    "  { \"symbol\": \"main\", \"signature\": \"fn main() -> i32\", \"file\": \"tests/cases/hello.tp\", \"line\": 3 }",
     "]",
   ]}
 />
 
-An `extern` function is marked as one, so a signature list cannot be mistaken for a
-list of functions this program defines.
+The list is exactly the functions the program defines. There is no FFI, so a
+signature can never refer to a C symbol.
 
 ## `init`, `install`, `deps`
 
@@ -213,7 +211,7 @@ reason the self-hosted ports can be held to the bootstrap byte for byte:
 <Session
   title="ralt tokens — the token stream, with line and column"
   lines={[
-    "$ ralt tokens examples/hello.tp",
+    "$ ralt tokens tests/cases/hello.tp",
     "TK_USE 4 1",
     "TK_TIER 4 5",
     "TK_IDENT 4 10 core",
@@ -225,12 +223,10 @@ reason the self-hosted ports can be held to the bootstrap byte for byte:
 <Session
   title="ralt tree — the parse"
   lines={[
-    "$ ralt tree examples/hello.tp",
+    "$ ralt tree tests/cases/hello.tp",
     "TIER core",
-    "EXTFN puts ret=i32",
-    "  PARAM p str",
     "FN main ret=i32",
-    "  EXPR (CALL puts STR)",
+    "  EXPR (CALL print_str STR)",
     "  RETURN INT 0",
   ]}
 />

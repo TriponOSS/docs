@@ -24,7 +24,6 @@ const KEYWORDS = new Set([
   "else",
   "while",
   "return",
-  "extern",
   "cast",
   "true",
   "false",

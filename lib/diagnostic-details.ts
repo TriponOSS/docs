@@ -84,13 +84,13 @@ fn main() -> i32 {
     transcript: [
       "$ ralt check e0002.tp",
       "e0002.tp:4:12: error: unexpected character in source",
-      "  [E0002 invalid-character] ASCII identifiers only; table in spec/tripon.md",
+      "  [E0002 invalid-character] ASCII identifiers only; table in spec/grammar.ebnf",
       "e0002.tp:4:13: error: unexpected character in source",
-      "  [E0002 invalid-character] ASCII identifiers only; table in spec/tripon.md",
+      "  [E0002 invalid-character] ASCII identifiers only; table in spec/grammar.ebnf",
       "e0002.tp:5:18: error: unexpected character in source",
-      "  [E0002 invalid-character] ASCII identifiers only; table in spec/tripon.md",
+      "  [E0002 invalid-character] ASCII identifiers only; table in spec/grammar.ebnf",
       "e0002.tp:5:19: error: unexpected character in source",
-      "  [E0002 invalid-character] ASCII identifiers only; table in spec/tripon.md",
+      "  [E0002 invalid-character] ASCII identifiers only; table in spec/grammar.ebnf",
     ],
     reading:
       "The `é` in `café` is two bytes in UTF-8, so it produces two diagnostics at the same identifier, and then two more on the use site. That is not noise: the lexer reports the exact bytes it could not classify.",
@@ -174,7 +174,7 @@ fn main() -> i32 {
     ],
     why:
       "Recovery keeps going so one run reports every line that is wrong, not just the first. That is worth the cost of cascade diagnostics, which are always downstream of an earlier span.",
-    related: ["/docs/reference/statements", "/docs/spec"],
+    related: ["/docs/reference/statements", "/docs/language"],
   },
   {
     code: "E0102",
@@ -205,13 +205,13 @@ fn main() -> i32 {
     ],
     why:
       "The split matters to a tool, not a person: a missing token is usually a one-character insertion at the reported span, while a wrong token may need a rewrite. Keeping the codes separate lets a fixer choose the cheaper edit without reading English.",
-    related: ["/docs/reference/statements", "/docs/spec"],
+    related: ["/docs/reference/statements", "/docs/language"],
   },
   {
     code: "E0201",
     headline: "A name was used that nothing declares.",
     body:
-      "The name-resolution pass knows every function, struct, enum, local and builtin visible at this point. A call to a function that is neither declared in the file nor in an `extern` block lands here, before any type is considered.",
+      "The name-resolution pass knows every function, struct, enum, local and builtin visible at this point. A call to a function that is not declared in the file, or in a dependency folded into it, lands here before any type is considered.",
     status: "emitted",
     trigger: T(
       "e0201.tp",
@@ -228,13 +228,13 @@ fn main() -> i32 {
       "  [E0201 unknown-identifier] define it, use the right module, or fix spelling",
     ],
     fix: [
-      "Declare the function in the file, or declare the C symbol in an `extern \"C\"` block.",
+      "Declare the function in the file, or add it as a dependency in `ralt.yaml`.",
       "For a local, check the binding is in scope at the use site: a block-local `let` does not exist after its `}`.",
       "For a struct or enum, check the definition precedes the use in the file.",
     ],
     why:
       "Tripon has no implicit libc prelude. A name in the environment is a dependency, and a dependency has to be written down. That is what makes a `.tp` file's imports auditable from the file itself.",
-    related: ["/docs/reference/extern", "/docs/reference/builtins"],
+    related: ["/docs/reference/builtins", "/docs/toolchain"],
   },
   {
     code: "E0202",

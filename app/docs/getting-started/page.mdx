@@ -27,32 +27,28 @@ works the same.
 make test
 ```
 
-The suite is 42 checks, including the diagnostic JSON goldens in
+The suite is 59 checks, including the diagnostic JSON goldens in
 `tests/expected/`. It must pass under both `gcc` and `clang`.
 
 ## Run a program
 
-Here is `examples/hello.tp` from the repository, complete:
+Here is `tests/cases/hello.tp` from the repository, complete:
 
 ```tripon
-// examples/hello.tp - the canonical smoke test
-// run: ralt run examples/hello.tp
+// tests/cases/hello.tp - the canonical smoke test
+// run: ralt run tests/cases/hello.tp
 
 use tier core;
 
-extern "C" {
-    fn puts(p: str) -> i32;
-}
-
 fn main() -> i32 {
-    puts("hello from tripon");
+    print_str("hello from tripon");
     return 0;
 }
 ```
 
 <Session
   lines={[
-    "$ ralt run examples/hello.tp",
+    "$ ralt run tests/cases/hello.tp",
     "hello from tripon",
   ]}
 />
@@ -62,7 +58,7 @@ your C compiler and runs the result — the emitted C is real, readable C, and y
 keep it:
 
 ```sh
-ralt emit --c examples/hello.tp -o hello.c
+ralt emit --c tests/cases/hello.tp -o hello.c
 ```
 
 ## Ask it what is wrong
@@ -72,7 +68,7 @@ ralt emit --c examples/hello.tp -o hello.c
 
 <Session
   title="a clean check"
-  lines={["$ ralt check examples/fib.tp --json", "[]"]}
+  lines={["$ ralt check fib.tp --json", "[]"]}
 />
 
 This program adds an `i32` to an `f64`, which Tripon refuses: there are no implicit
@@ -135,11 +131,10 @@ deps:
 ```tripon
 use tier core;
 
-extern "C" { fn puts(p: str) -> i32; }
 
 // demo - a Tripon program (.tp)
 fn main() -> i32 {
-    puts("hello, tripon");
+    print_str("hello, tripon");
     return 0;
 }
 ```
@@ -165,5 +160,4 @@ is nothing to configure beyond pointing your editor at the binary.
 - [The language](/docs/language) is the surface: statements, expressions, precedence.
 - [Traps and no-UB](/docs/language/traps) explains what happens at runtime when a
   program divides by zero, because it is not a crash.
-- [The agent interface](/docs/agents) is the contract in full, if a program is
-  going to read the compiler rather than a person.
+- [Builtins](/docs/reference/builtins) is the prelude: what exists, and what does not.

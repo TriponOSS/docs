@@ -27,7 +27,7 @@ frozen oracle produced by the C implementation.
 ## How the oracle works
 
 `tests/selfhost.sh` builds the port, then runs it and the bootstrap command over the
-same corpus — every file in `examples/` and `tests/cases/`, plus the port's own source.
+same corpus — every file in `` and `tests/cases/`, plus the port's own source.
 The file's exact bytes are handed to the port through `$TP_SRC`, with a sentinel
 character appended and stripped so that trailing newlines survive a shell round trip
 that would otherwise eat them. For the lexer, the comparison is the complete token
@@ -36,12 +36,12 @@ stream:
 <Session
   title="the oracle, for one file"
   lines={[
-    "$ ralt tokens examples/hello.tp",
+    "$ ralt tokens tests/cases/hello.tp",
     "TK_USE 4 1",
     "TK_TIER 4 5",
     "TK_IDENT 4 10 core",
     "…",
-    "$ TP_SRC=\"$(cat examples/hello.tp)\" ./tp_lexbin   # the same stream, from Tripon",
+    "$ TP_SRC=\"$(cat tests/cases/hello.tp)\" ./tp_lexbin   # the same stream, from Tripon",
   ]}
 />
 
