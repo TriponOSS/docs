@@ -106,10 +106,13 @@ Landed:
   everything it actually uses (E0301), the piece of
   [the tier system](/docs/language/tiers) that was specified but not wired in
 
+- a content-addressed lockfile — `ralt lock` writes one FNV-1a hash per dep
+  tree into `ralt.lock`, deterministic and content-tracking
+
 Still ideation:
 
-- a content-addressed package cache, so a dependency is fetched once and identified by
-  its hash rather than by a URL
+- a package cache keyed by those hashes, so a dependency is fetched once and
+  identified by content rather than by a URL
 
 ## Not decided
 
