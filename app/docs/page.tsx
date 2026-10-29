@@ -31,6 +31,7 @@ const blurbs: Record<string, string> = {
   "/docs/reference/operators": "Precedence, operand types, and which operators exist at all.",
   "/docs/reference/statements": "The nine statement forms, with the diagnostic for each edge.",
   "/docs/reference/literals": "Number forms, six escapes, identifiers, keywords and comments.",
+  "/docs/stdlib": "The pure-Tripon library: math, opt/result, str, containers.",
   "/docs/self-hosting": "The compiler ports written in the language they compile.",
   "/docs/roadmap": "P0 through P4, what shipped, and what is next.",
 };

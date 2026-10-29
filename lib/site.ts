@@ -64,6 +64,7 @@ export const docsNav: NavGroup[] = [
   {
     label: "more",
     items: [
+      { href: "/docs/stdlib", label: "Standard library" },
       { href: "/docs/self-hosting", label: "Self-hosting" },
       { href: "/docs/roadmap", label: "Roadmap" },
     ],
