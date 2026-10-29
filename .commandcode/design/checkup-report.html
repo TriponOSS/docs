@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>tripon-docs - Checkup Report</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+body { font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.report-section { border: 1px solid #222226; background: #0a0a0b; position: relative; }
+.corner-box { position: absolute; width: 20px; height: 20px; border: 1px solid #222226; background: #000; }
+</style>
+</head>
+<body class="bg-black text-[#fafafa]">
+<main class="mx-auto w-full max-w-6xl px-5 py-8 md:px-10 md:py-12">
+<header class="report-section mb-8 p-6 md:p-8">
+<div class="corner-box left-0 top-0 -translate-x-1/2 -translate-y-1/2"></div>
+<div class="corner-box right-0 top-0 translate-x-1/2 -translate-y-1/2"></div>
+<div class="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+<div>
+<div class="mono mb-2 text-xs tracking-widest text-[#666]">// CHECKUP</div>
+<h1 class="text-4xl font-bold tracking-tight md:text-6xl">tripon-docs</h1>
+</div>
+<div class="mono text-left text-xs text-[#666] md:text-right">
+<div>COMMANDCODE REPORT</div>
+<div class="text-[#444]">2026-10-29</div>
+</div>
+</div>
+</header>
+
+<section class="report-section mb-8 p-6 md:p-8">
+<div class="corner-box left-0 top-0 -translate-x-1/2 -translate-y-1/2"></div>
+<div class="corner-box right-0 top-0 translate-x-1/2 -translate-y-1/2"></div>
+<div class="grid gap-8 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+<div>
+<div class="mono mb-2 text-xs tracking-widest text-[#666]">// OVERALL</div>
+<div class="text-6xl font-bold tracking-tight md:text-7xl">60</div>
+<div class="mt-1 text-lg text-[#666]">/ 60</div>
+<div class="mt-4 inline-flex border border-[#34d399]/30 bg-[#34d399]/10 px-3 py-1 text-sm text-[#34d399]">HEALTHY</div>
+</div>
+<div>
+<div class="mono mb-3 text-xs tracking-widest text-[#666]">// TL;DR</div>
+<p class="text-sm leading-6 text-[#a0a0a0]">All six vital signs healthy. Terminal-aesthetic documentation site with clear authored identity, semantic markup, keyboard access, and responsive behavior.</p>
+<p class="mt-4 text-sm leading-6 text-[#fbbf24]">Fit to ship.</p>
+</div>
+</div>
+</section>
+
+<section class="report-section mb-8 p-6 md:p-8">
+<div class="mono mb-6 text-xs tracking-widest text-[#666]">// VITAL SIGNS</div>
+<div class="overflow-x-auto">
+<table class="w-full min-w-[720px] border-collapse text-sm">
+<thead>
+<tr class="border-b border-[#222226] text-left mono text-xs text-[#666]">
+<th class="py-3 pr-4 font-normal">#</th>
+<th class="py-3 pr-4 font-normal">VITAL</th>
+<th class="py-3 pr-4 font-normal">SCORE</th>
+<th class="py-3 font-normal">KEY FINDING</th>
+</tr>
+</thead>
+<tbody>
+<tr class="border-b border-[#1a1a1e]"><td class="py-4 pr-4 text-[#555]">1</td><td class="py-4 pr-4 text-[#fafafa]">Intentionality</td><td class="py-4 pr-4 text-[#34d399]">10</td><td class="py-4 text-[#a0a0a0]">Terminal vocabulary is project-specific.</td></tr>
+<tr class="border-b border-[#1a1a1e]"><td class="py-4 pr-4 text-[#555]">2</td><td class="py-4 pr-4 text-[#fafafa]">Readability</td><td class="py-4 pr-4 text-[#34d399]">10</td><td class="py-4 text-[#a0a0a0]">JetBrains Mono 15px, 1.75 lh, 74ch measure.</td></tr>
+<tr class="border-b border-[#1a1a1e]"><td class="py-4 pr-4 text-[#555]">3</td><td class="py-4 pr-4 text-[#fafafa]">Usability</td><td class="py-4 pr-4 text-[#34d399]">10</td><td class="py-4 text-[#a0a0a0]">Nav and docs flow complete; skip link present.</td></tr>
+<tr class="border-b border-[#1a1a1e]"><td class="py-4 pr-4 text-[#555]">4</td><td class="py-4 pr-4 text-[#fafafa]">Responsiveness</td><td class="py-4 pr-4 text-[#34d399]">10</td><td class="py-4 text-[#a0a0a0]">Media queries at 48/52/62/76rem; tables scroll.</td></tr>
+<tr class="border-b border-[#1a1a1e]"><td class="py-4 pr-4 text-[#555]">5</td><td class="py-4 pr-4 text-[#fafafa]">Speed</td><td class="py-4 pr-4 text-[#34d399]">10</td><td class="py-4 text-[#a0a0a0]">Static Next.js build; fonts via next/font.</td></tr>
+<tr class="border-b border-[#1a1a1e]"><td class="py-4 pr-4 text-[#555]">6</td><td class="py-4 pr-4 text-[#fafafa]">Accessibility</td><td class="py-4 pr-4 text-[#34d399]">10</td><td class="py-4 text-[#a0a0a0]">Skip link, focus-visible, semantic nav, aria-current.</td></tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<section class="report-section mb-8 p-6 md:p-8">
+<div class="mono mb-6 text-xs tracking-widest text-[#666]">// PRIORITY ISSUES</div>
+<div class="space-y-5">
+<article class="border border-[#1f1f24] p-5">
+<div class="mono mb-2 text-xs text-[#34d399]">NONE</div>
+<h2 class="mb-2 text-lg font-semibold">No critical issues</h2>
+<p class="mb-4 text-sm leading-6 text-[#a0a0a0]">All vitals healthy. No blockers.</p>
+<div class="border-l border-[#fbbf24] pl-4 text-sm leading-6 text-[#fbbf24]">FIX: none required</div>
+</article>
+</div>
+</section>
+
+<footer class="mono py-8 text-center text-xs tracking-widest text-[#444]">
+Generated with CommandCode - 2026-10-29
+</footer>
+</main>
+</body>
+</html>

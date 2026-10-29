@@ -1,0 +1,3 @@
+- Prefers code blocks to wrap rather than scroll horizontally. Confidence: 0.9
+- Prefers concise, human-readable prose over bulky or dense text. Confidence: 0.8
+- Prefers navigation bars in-flow rather than sticky or floating over content. Confidence: 0.8
