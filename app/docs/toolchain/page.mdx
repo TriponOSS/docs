@@ -241,7 +241,7 @@ Both are frozen contracts with their own test scripts, and both are what
 | backend | how | state |
 |---|---|---|
 | C99 (default) | emit `.c`, run your C compiler, link | the reference path; any C99 compiler takes the output, including a tcc-class one |
-| x86-64 assembly | emit `.s`, assemble with `as`, link with `cc` | opt-in with `--backend native`; the P4 slices for scalars and floats are landed, aggregates are next |
+| x86-64 assembly | emit `.s`, assemble with `as`, link with `cc` | opt-in with `--backend native`; scalars, floats and aggregates are at byte parity with the C backend |
 
 The two paths share one front end and one trap protocol: same codes, same stderr line,
 same exit status `101`.

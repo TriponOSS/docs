@@ -18,7 +18,7 @@ column below is a fraction rather than a date.
 | P1 | a bootstrap compiler in C99 | shipped |
 | P2 | agent tooling: fmt, doc, lsp, deps, the token oracle | shipped |
 | P3 | self-host — the compiler written in Tripon | in progress: lexer and parser replay their oracles; the typechecker is written |
-| P4 | the native x86-64 backend | in progress: scalars and floats at byte parity; aggregates next |
+| P4 | the native x86-64 backend | shipped: scalars, floats and aggregates at byte parity with the C backend |
 
 ## P0 — the spec
 
@@ -90,9 +90,13 @@ become an option rather than a requirement.
 - **P4.1 shipped** — scalars, with the traps at byte parity with the C path
 - **P4.2 shipped** — floats: slot-resident, `xmm0` staging, IEEE-blob constants,
   `E9004` guards on float-to-integer casts, NaN-safe comparisons
-- **next** — P4.3 aggregates: arrays, structs, enums with match, `opt` and `result`
-- **then** — P4.4, a native test slice held to the same stdout, exit status and trap
-  protocol as the C backend
+- **P4.3 shipped** — aggregates: fixed arrays (with `E9002` bounds), structs,
+  enums with exhaustive `match`, `opt` and `result` with `?` propagation, arrays
+  of structs. Structs and tagged values pass by address internally, with a hidden
+  destination pointer for returns
+- **P4.4 shipped** — `tests/native_parity.sh` builds every corpus case with both
+  backends and diffs stdout, exit status and the trap protocol: 21/21 pass, zero
+  skips
 
 One contract governs the whole phase: same front end, same semantics, same trap line,
 same exit `101`. A second backend that disagrees with the first about a program's
