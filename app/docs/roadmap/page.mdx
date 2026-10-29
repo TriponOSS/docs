@@ -100,13 +100,16 @@ meaning would be worse than no second backend.
 
 ## After that
 
-Recorded as ideation rather than as a phase, because neither is designed yet:
+Landed:
+
+- a tier linter — `ralt lint` enforces a file's declared ceiling against
+  everything it actually uses (E0301), the piece of
+  [the tier system](/docs/language/tiers) that was specified but not wired in
+
+Still ideation:
 
 - a content-addressed package cache, so a dependency is fetched once and identified by
   its hash rather than by a URL
-- a tier linter, so a file's declared ceiling is enforced against everything it
-  actually uses — the piece of [the tier system](/docs/language/tiers) that is
-  specified but not yet wired into the compiler
 
 ## Not decided
 
